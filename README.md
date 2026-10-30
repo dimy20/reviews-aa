@@ -33,10 +33,10 @@ Cada dimensión es una pregunta sobre la reseña.
 
 Vamos a fine-tunear kev para reviews, seleccionaermos un subconjunto de reviews que etiquetaremos de forma manual para ajustar kev a un corpus de restaurant reviews.
 
-### Paso intermdio para Espanol y Portugues
+### Paso intermdio para Español y Portugues
 
 kev-4b se entrenó solo en ingles, por lo tanto como queremos abacar reviwes en tres idiomas (Ingles, Spanol y Portugues), para inferencia necesitamos un paso previo:
-Las reviews en Espanol y Portugues deben ser traducidas a Ingles previamente.
+Las reviews en Español y Portugues deben ser traducidas a Ingles previamente.
 
 Para esto usamos langdetect para detectar el idioma de entrada y <POR_DECIDIR> para traducir al ingles si se detecta 'es' o 'pt'.
 
@@ -51,7 +51,7 @@ Si la calidad no alcanza, la alternativa es [Qwen/Qwen3.5-4B](https://huggingfac
 ## Datos
 
 - Fuente: Yelp Restaurant Reviews, unas 20 000 reseñas (texto, fecha, rating 1–5). La URL se descarta para proteger a los autores.
-- Idiomas: 1/3 se mantiene en inglés, 1/3 se traduce al español y 1/3 al portugués.
+- Idiomas: 1/3 se mantiene en inglés, 1/3 se traduce al español y 1/3 al portugués. Usamos [google/translategemma-4b-it](https://huggingface.co/google/translategemma-4b-it) para traducir.
 - Etiquetas: el dataset solo trae el rating global, así que las etiquetas por dimensión se generan con un LLM más grande.
 
 ## Arquitectura
