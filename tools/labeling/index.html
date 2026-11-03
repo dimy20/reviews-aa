@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Etiquetado de reseñas</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e3e1dc;
+    --accent: #2f5bd3; --accent-soft: #e6ecfb; --on-accent: #fff; --warn: #b4540a; --warn-soft: #fbeedd;
+    --s1: #c8372d; --s2: #e07b39; --s3: #c9a227; --s4: #6aa84f; --s5: #2e8b57; --na: #8a8984;
+    --d-food: #f6d7a7; --d-wait_time: #c9def7; --d-service: #d9ccf2; --d-price: #c7ebd2; --d-experience: #f6c9d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615; --panel: #1f1f1d; --ink: #ecebe7; --muted: #9c9a94; --line: #34332f;
+      --accent: #7ea1ff; --accent-soft: #24304f; --on-accent: #10172b; --warn: #f0a35e; --warn-soft: #3d2b17;
+      --d-food: #5a4320; --d-wait_time: #22405f; --d-service: #3d3260; --d-price: #234a31; --d-experience: #5a2737;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  kbd { font: 12px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px;
+        border-radius: 4px; padding: 0 4px; background: var(--panel); color: var(--muted); }
+
+  header { display: flex; align-items: center; gap: 16px; padding: 10px 20px;
+           border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  .progress { flex: 1; min-width: 200px; display: flex; align-items: center; gap: 10px; }
+  .bar { flex: 1; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+  .progress small, header small { color: var(--muted); white-space: nowrap; }
+  .who { display: flex; gap: 8px; align-items: center; }
+  .linkish { background: none; border: 0; color: var(--accent); padding: 0; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: var(--panel); padding: 6px 10px; font-size: 13px; color: var(--muted);
+                border-right: 1px solid var(--line); white-space: nowrap; }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .seg button small { opacity: .75; color: inherit; }
+  .count { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; font-size: 12px;
+           background: var(--warn-soft); color: var(--warn); font-weight: 600; text-align: center; }
+
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: 20px;
+         max-width: 1400px; margin: 0 auto; padding: 20px; }
+  @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+
+  .meta { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft);
+          color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .stars { color: #d39a00; letter-spacing: 1px; }
+  .meta .grow { flex: 1; }
+  .meta small { color: var(--muted); }
+
+  #text { font-size: 18px; line-height: 1.65; white-space: pre-wrap; margin: 0; }
+  #text mark { background: none; color: inherit; border-radius: 3px; padding: 0 1px; }
+  #text.hl mark { background: var(--hl); }
+  details.orig { margin-top: 16px; border-top: 1px dashed var(--line); padding-top: 10px; }
+  details.orig summary { color: var(--muted); cursor: pointer; font-size: 13px; }
+  details.orig p { color: var(--muted); white-space: pre-wrap; margin: 8px 0 0; }
+  .legend { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--muted); }
+  .legend span { padding: 1px 7px; border-radius: 4px; }
+
+  .dims { display: flex; flex-direction: column; gap: 6px; }
+  .dim { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px;
+         padding: 8px 10px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; }
+  .dim.active { border-color: var(--accent); background: var(--accent-soft); }
+  .dim .name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .dim .name i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .opts { display: flex; gap: 4px; }
+  .opt { width: 36px; height: 34px; border-radius: 6px; border: 1px solid var(--line);
+         background: var(--panel); font-weight: 600; font-size: 14px; }
+  .opt.na { width: 44px; font-size: 12px; }
+  .dim.missing { border-color: var(--s1); }
+  .dim.missing .name::after { content: "falta"; font-size: 11px; font-weight: 600; color: var(--s1);
+                              text-transform: uppercase; letter-spacing: .04em; }
+  .dim.shake { animation: shake .3s; }
+  @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+  .btn.primary.incomplete { opacity: .55; }
+  .opt.sug { outline: 2px dashed var(--accent); outline-offset: 1px; }
+  .dim .why { grid-column: 1 / -1; font-size: 12.5px; line-height: 1.4; color: var(--muted); margin-top: -2px; }
+  .dim .why:empty { display: none; }
+  .sugrow { display: flex; gap: 10px; align-items: center; margin: 0 0 10px; flex-wrap: wrap; }
+  .sugrow .btn { font-weight: 600; }
+  .sugrow .btn:disabled { opacity: .6; cursor: progress; }
+  .suginfo { font-size: 12.5px; color: var(--muted); flex: 1; min-width: 180px; }
+  .opt.on { color: #fff; border-color: transparent; }
+  .opt.on[data-v="na"] { background: var(--na); }
+  .opt.on[data-v="1"] { background: var(--s1); } .opt.on[data-v="2"] { background: var(--s2); }
+  .opt.on[data-v="3"] { background: var(--s3); } .opt.on[data-v="4"] { background: var(--s4); }
+  .opt.on[data-v="5"] { background: var(--s5); }
+
+  .flagrow { display: flex; gap: 8px; margin-top: 14px; align-items: center; }
+  .flagrow input { flex: 1; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px;
+                   background: var(--bg); color: var(--ink); font: inherit; }
+  .btn { padding: 8px 14px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); }
+  .btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+  .btn.flag.on { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .actions { display: flex; gap: 8px; margin-top: 14px; }
+  .actions .primary { flex: 1; }
+  .editing { margin-bottom: 12px; padding: 8px 12px; border-radius: 7px; background: var(--warn-soft);
+             color: var(--warn); font-size: 13px; display: flex; justify-content: space-between; gap: 8px; }
+
+  .keys { margin-top: 16px; font-size: 12.5px; color: var(--muted); display: grid;
+          grid-template-columns: auto 1fr; gap: 4px 10px; }
+  .keys > kbd { justify-self: start; align-self: start; }
+
+  aside.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100vw); background: var(--panel);
+                 border-left: 1px solid var(--line); padding: 20px; overflow: auto; z-index: 10;
+                 transform: translateX(100%); transition: transform .2s; }
+  aside.drawer.open { transform: none; box-shadow: -10px 0 30px rgba(0,0,0,.15); }
+  aside h2 { font-size: 15px; margin: 0 0 12px; display: flex; justify-content: space-between; }
+  aside h3 { font-size: 13px; color: var(--muted); margin: 18px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td, th { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: right; }
+  td:first-child, th:first-child { text-align: left; }
+  .hist-item { padding: 8px 0; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 13px; }
+  .hist-item:hover { color: var(--accent); }
+  .hist-item .sc { font: 12px ui-monospace, monospace; color: var(--muted); }
+  .hist-item.current { color: var(--accent); }
+  .hist-item .held { color: var(--warn); font-size: 12px; }
+  .guide p, .guide li { font-size: 13.5px; }
+
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: grid; place-items: center; z-index: 20; }
+  .modal .card { width: min(380px, 92vw); }
+  .modal input { width: 100%; padding: 9px 10px; margin: 10px 0; border: 1px solid var(--line); border-radius: 6px;
+                 background: var(--bg); color: var(--ink); font: inherit; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink);
+           color: var(--bg); padding: 8px 16px; border-radius: 8px; opacity: 0; transition: opacity .2s;
+           pointer-events: none; font-size: 14px; }
+  #toast.show { opacity: .92; }
+  .done { text-align: center; padding: 60px 20px; color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Etiquetado de reseñas</h1>
+  <div class="progress">
+    <div class="bar"><span id="bar"></span></div>
+    <small id="progressText">…</small>
+  </div>
+  <small id="sessionText"></small>
+  <div class="seg" id="langSeg" title="Idioma a etiquetar"></div>
+  <div class="who">
+    <small>Anotador: <b id="whoName"></b></small>
+    <button class="linkish" id="changeWho">cambiar</button>
+    <button class="btn" id="openStats">Estadísticas <kbd>i</kbd></button>
+    <button class="btn" id="openHist">Historial <kbd>l</kbd></button>
+    <button class="btn" id="openSkipped">Saltadas <span class="count" id="skipCount">0</span> <kbd>x</kbd></button>
+    <button class="btn" id="openGuide">Guía <kbd>?</kbd></button>
+  </div>
+</header>
+
+<main id="app">
+  <section class="card" id="reviewCard">
+    <div class="editing" id="editBanner" hidden>
+      <span id="editText"></span>
+      <button class="linkish" id="backToQueue">Volver a la cola <kbd>Esc</kbd></button>
+    </div>
+    <div class="meta">
+      <span class="pill" id="lang"></span>
+      <span class="pill warn" id="skippedPill" hidden>saltada antes</span>
+      <span class="pill warn" id="labeledPill" hidden></span>
+      <span class="stars" id="stars" title="Rating de Yelp"></span>
+      <span class="grow"></span>
+      <small id="rid"></small>
+    </div>
+    <p id="text"></p>
+    <details class="orig" id="origBox">
+      <summary>Original en inglés <kbd>e</kbd></summary>
+      <p id="orig"></p>
+    </details>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="card">
+    <div class="sugrow">
+      <button class="btn" id="suggestBtn" title="Pide a la IA un primer intento y completa las dimensiones sin elegir">✨ Sugerir <kbd>a</kbd></button>
+      <span class="suginfo" id="sugInfo"></span>
+    </div>
+    <div class="dims" id="dims"></div>
+    <div class="flagrow">
+      <button class="btn flag" id="flagBtn" title="Marcar para revisar">⚑ Marcar <kbd>f</kbd></button>
+      <input id="note" placeholder="Nota (opcional)…" autocomplete="off">
+    </div>
+    <div class="actions">
+      <button class="btn" id="prevBtn" title="Anterior">← <kbd>⌫</kbd></button>
+      <button class="btn" id="skipBtn">Saltar <kbd>s</kbd></button>
+      <button class="btn primary" id="saveBtn"><span id="saveLabel">Guardar y siguiente</span> <kbd style="color:inherit;background:none">Enter</kbd></button>
+    </div>
+    <div class="keys">
+      <kbd>1</kbd><span>…<kbd>5</kbd> puntúa la dimensión activa y avanza</span>
+      <kbd>0</kbd><span>o <kbd>n</kbd> → N/A y avanza</span>
+      <kbd>↑</kbd><span><kbd>↓</kbd> / <kbd>k</kbd> <kbd>j</kbd> cambia de dimensión (o click)</span>
+      <kbd>Enter</kbd><span>guarda y pasa a la siguiente; las 5 dimensiones deben tener valor (N/A incluido)</span>
+      <kbd>⌫</kbd><span>vuelve a la anterior para corregirla</span>
+      <kbd>h</kbd><span>resaltado de palabras clave on/off · <kbd>z</kbd> borra los puntajes</span>
+      <kbd>x</kbd><span>lista de saltadas · <kbd>g</kbd> cambia de idioma</span>
+      <kbd>a</kbd><span>Sugerir: la IA completa las dimensiones sin elegir (revisa y corrige antes de guardar)</span>
+    </div>
+  </section>
+</main>
+
+<div class="done card" id="doneBox" hidden style="max-width:600px;margin:40px auto">
+  <h2 id="doneTitle">🎉 No quedan reseñas por etiquetar</h2>
+  <p id="doneText"></p>
+  <p id="doneOther"></p>
+</div>
+
+<aside class="drawer" id="statsDrawer">
+  <h2>Estadísticas <button class="linkish" data-close>cerrar</button></h2>
+  <div id="statsBody"></div>
+</aside>
+<aside class="drawer" id="histDrawer">
+  <h2>Mis últimas etiquetas <button class="linkish" data-close>cerrar</button></h2>
+  <div id="histBody"></div>
+</aside>
+<aside class="drawer" id="skippedDrawer">
+  <h2><span>Saltadas sin etiquetar <small id="skippedScope" style="color:var(--muted);font-weight:400"></small></span>
+      <button class="linkish" data-close>cerrar</button></h2>
+  <p style="color:var(--muted);font-size:13px;margin-top:0">De todos los anotadores. Abre una para etiquetarla;
+     al guardarla pasa a la siguiente de esta lista. Cuando se acaba la cola normal, también se sirven solas.</p>
+  <div id="skippedBody"></div>
+</aside>
+<aside class="drawer guide" id="guideDrawer">
+  <h2>Guía de etiquetado <button class="linkish" data-close>cerrar</button></h2>
+  <p>Puntúa cada dimensión según lo que <b>dice la reseña</b>, no lo que imaginas. Si la dimensión no aparece, es <b>N/A</b>.</p>
+  <h3>Escala</h3>
+  <ul>
+    <li><b>1</b> muy negativo — queja clara, enojo, "nunca más"</li>
+    <li><b>2</b> negativo — decepción, con algo rescatable</li>
+    <li><b>3</b> mixto o neutro — bueno y malo a la vez, "estaba bien"</li>
+    <li><b>4</b> positivo — le gustó, con matices</li>
+    <li><b>5</b> muy positivo — entusiasmo, "el mejor", "increíble"</li>
+    <li><b>N/A</b> la reseña no habla de esto</li>
+  </ul>
+  <h3>Dimensiones</h3>
+  <ul>
+    <li><b>Satisfacción comida</b>: sabor, calidad, frescura, porciones, variedad de los productos.</li>
+    <li><b>Tiempo de espera</b>: filas, demoras, rapidez. Una fila larga que "valió la pena" sigue siendo una espera (≈3).</li>
+    <li><b>Atención</b>: trato del personal, amabilidad, ayuda, errores en el pedido.</li>
+    <li><b>Precio</b>: caro/barato, relación calidad-precio, "vale lo que cuesta".</li>
+    <li><b>Experiencia</b>: impresión global del lugar: ambiente, limpieza, decoración, ganas de volver o recomendar.</li>
+  </ul>
+  <h3>Casos dudosos</h3>
+  <ul>
+    <li>Traducción rara o confusa: mira el original en inglés (<kbd>e</kbd>) y etiqueta según el sentido.</li>
+    <li>No sabes qué poner: márcala con <kbd>f</kbd> y deja una nota, o sáltala con <kbd>s</kbd>.</li>
+    <li>Las estrellas de Yelp son una pista, no la respuesta: una reseña de 5★ puede quejarse del precio.</li>
+  </ul>
+  <h3>Atajos</h3>
+  <p><kbd>i</kbd> estadísticas · <kbd>l</kbd> historial · <kbd>x</kbd> saltadas · <kbd>g</kbd> idioma · <kbd>?</kbd> esta guía · <kbd>Esc</kbd> cerrar</p>
+</aside>
+
+<div class="modal" id="whoModal" hidden>
+  <form class="card" id="whoForm">
+    <b>¿Quién está etiquetando?</b>
+    <input id="whoInput" placeholder="Tu nombre" maxlength="40" required autocomplete="off">
+    <button class="btn primary" style="width:100%">Empezar</button>
+  </form>
+</div>
+<div id="toast"></div>
+
+<script>
+// Keyword stems per dimension, in en/es/pt. Only a reading aid for spotting mentions.
+const KEYWORDS = {
+  food: ["food", "flavou?rs?", "tast\\w*", "delici\\w*", "yumm?y", "fresh", "stale", "bland", "sweet",
+         "comida", "sabor\\w*", "sabros\\w*", "rico", "rica", "fresc[oa]s?", "dulce", "insípid\\w*", "soso",
+         "gostos\\w*", "sabores", "doce", "frescos?", "saboros\\w*"],
+  wait_time: ["wait\\w*", "lines?", "queue\\w*", "minutes?", "hours?", "slow\\w*", "quick\\w*", "fast",
+              "espera\\w*", "esperar", "fila", "filas", "cola", "minutos?", "horas?", "lent[oa]s?", "rápid\\w*",
+              "demor\\w*", "tard\\w*"],
+  service: ["staff", "service", "friendly", "rude", "employees?", "servers?", "cashiers?", "owners?",
+            "helpful", "workers?", "atenci\\w*", "servicio", "personal", "amabl\\w*", "simpátic\\w*",
+            "groser\\w*", "emplead\\w*", "dueñ\\w*", "atendiment\\w*", "atendent\\w*", "funcionári\\w*",
+            "atencios\\w*", "educad\\w*", "prestativ\\w*", "gentis?", "mal-educad\\w*"],
+  price: ["prices?", "pricey", "pricy", "expensive", "cheap\\w*", "overpriced", "cost\\w*", "value",
+          "\\$\\s?\\d+(?:[.,]\\d+)?", "dollars?", "precios?", "car[oa]s?", "barat\\w*", "costos[oa]?", "dólares?",
+          "dinero", "preços?", "dinheiro", "custo\\w*", "vale la pena", "vale a pena", "worth"],
+  experience: ["atmosphere", "ambiance", "vibe", "decor", "recommend\\w*", "come back", "go back", "return",
+               "cozy", "clean", "experience", "ambiente", "recomiend\\w*", "recomend\\w*", "volver\\w*",
+               "volvería", "voltar\\w*", "voltaria", "acogedor\\w*", "aconchegante", "limpi\\w*", "limp[oa]s?",
+               "decoraci\\w*", "decoraç\\w*", "experiencia", "experiência", "volta\\w*"],
+};
+
+const $ = (id) => document.getElementById(id);
+const S = {
+  annotator: null, dims: {}, dimKeys: [], current: null, queueId: null,
+  scores: {}, active: 0, flagged: false, started: 0,
+  mode: "queue",          // "queue" | "edit" (from history) | "skipped" (from the skipped list)
+  lang: "all", skipped: [], stats: null,
+  history: [], histIdx: -1, highlight: true, session: { n: 0, secs: 0 }, busy: false,
+};
+let HL_RE = null;
+const LANGS = ["all", "en", "es", "pt"];
+const LANG_LABEL = { all: "Todos", en: "EN", es: "ES", pt: "PT" };
+const LANG_NAME = { en: "inglés", es: "español", pt: "portugués" };
+const q = (o) => new URLSearchParams(o).toString();
+
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+async function api(path, body) {
+  const res = await fetch(path, body ? {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  } : undefined);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function toast(msg, ms = 1400) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), ms);
+}
+
+// ---------------------------------------------------------------- rendering
+
+function buildHighlighter() {
+  const parts = S.dimKeys.map((d, i) => `(?<d${i}>${KEYWORDS[d].join("|")})`);
+  HL_RE = new RegExp(`(?<![\\p{L}\\p{N}])(?:${parts.join("|")})(?![\\p{L}\\p{N}])`, "giu");
+  $("legend").innerHTML = "";
+  S.dimKeys.forEach((d) => {
+    const s = document.createElement("span");
+    s.style.background = `var(--d-${d})`; s.textContent = S.dims[d];
+    $("legend").append(s);
+  });
+}
+
+function renderText(text) {
+  const el = $("text"); el.textContent = "";
+  let last = 0;
+  for (const m of text.matchAll(HL_RE)) {
+    el.append(text.slice(last, m.index));
+    const i = Object.entries(m.groups).findIndex(([, v]) => v !== undefined);
+    const mk = document.createElement("mark");
+    mk.style.setProperty("--hl", `var(--d-${S.dimKeys[i]})`);
+    mk.title = S.dims[S.dimKeys[i]];
+    mk.textContent = m[0];
+    el.append(mk);
+    last = m.index + m[0].length;
+  }
+  el.append(text.slice(last));
+  el.classList.toggle("hl", S.highlight);
+}
+
+function buildDims() {
+  const box = $("dims"); box.innerHTML = "";
+  S.dimKeys.forEach((d, i) => {
+    const row = document.createElement("div");
+    row.className = "dim"; row.dataset.i = i;
+    row.innerHTML = `<span class="name"><i style="background:var(--d-${d})"></i>${S.dims[d]}</span>
+      <span class="opts">
+        <button class="opt na" data-v="na" tabindex="-1">N/A</button>
+        ${[1, 2, 3, 4, 5].map((v) => `<button class="opt" data-v="${v}" tabindex="-1">${v}</button>`).join("")}
+      </span>
+      <div class="why"></div>`;
+    row.addEventListener("click", (e) => {
+      const b = e.target.closest(".opt");
+      S.active = i;
+      if (b) setScore(b.dataset.v === "na" ? null : +b.dataset.v, false);
+      renderDims();
+    });
+    box.append(row);
+  });
+}
+
+function renderDims() {
+  const sug = S.current?.suggestion;
+  document.querySelectorAll(".dim").forEach((row, i) => {
+    const d = S.dimKeys[i], v = S.scores[d];
+    row.classList.toggle("active", i === S.active);
+    row.querySelectorAll(".opt").forEach((b) => {
+      const bv = b.dataset.v === "na" ? null : +b.dataset.v;
+      b.classList.toggle("on", v !== undefined && v === bv);
+      b.classList.toggle("sug", !!sug && sug.scores[d] === bv);
+    });
+    row.querySelector(".why").textContent = sug ? sug.justifications[d] || "" : "";
+    row.classList.toggle("missing", S.showMissing && v === undefined);
+  });
+  $("flagBtn").classList.toggle("on", S.flagged);
+  const left = missingDims().length;
+  $("saveBtn").classList.toggle("incomplete", left > 0);
+  $("saveLabel").textContent = left ? `Faltan ${left} de ${S.dimKeys.length}` : "Guardar y siguiente";
+}
+
+function missingDims() { return S.dimKeys.filter((d) => S.scores[d] === undefined); }
+
+function showReview(r, mode) {
+  S.showMissing = false;
+  S.current = r; S.mode = mode; S.started = performance.now(); S.active = 0;
+  const editing = mode !== "queue";
+  const lbl = r.label;
+  S.scores = {};
+  if (lbl) S.dimKeys.forEach((d) => (S.scores[d] = lbl.scores[d]));
+  S.flagged = lbl ? lbl.flagged : false;
+  $("note").value = lbl ? lbl.note : "";
+  renderSugInfo();
+
+  $("lang").textContent = LANG_NAME[r.lang] || r.lang;
+  $("stars").textContent = r.rating ? "★".repeat(r.rating) + "☆".repeat(5 - r.rating) : "";
+  $("rid").textContent = `#${r.id}`;
+  $("skippedPill").hidden = !r.was_skipped || mode === "skipped";
+  $("labeledPill").hidden = !(lbl && !editing);
+  if (lbl && !editing) $("labeledPill").textContent = `etiquetada por ${lbl.annotator}`;
+  $("origBox").hidden = !r.source_en;
+  $("orig").textContent = r.source_en || "";
+  $("editBanner").hidden = !editing;
+  if (mode === "edit") $("editText").textContent =
+    `Editando #${r.id}` + (lbl ? ` (etiquetada por ${lbl.annotator}, ${lbl.updated_at} UTC)` : "");
+  if (mode === "skipped") $("editText").textContent =
+    `Revisando saltada #${r.id}` +
+    (r.skips?.length ? ` (saltada por ${r.skips.map((x) => x.annotator).join(", ")})` : "") +
+    (r.held_by ? ` · ⚠ ${r.held_by} la tiene abierta` : "") +
+    (lbl ? ` · ya etiquetada por ${lbl.annotator}` : "");
+  renderText(r.text);
+  renderDims();
+  $("app").hidden = false; $("doneBox").hidden = true;
+  window.scrollTo(0, 0);
+}
+
+// ------------------------------------------------------------------ actions
+
+function renderSugInfo() {
+  const sug = S.current?.suggestion;
+  $("sugInfo").innerHTML = sug
+    ? `Sugerencia de <b>${esc(sug.model)}</b> (borde punteado) · revísala antes de guardar · ` +
+      `<button class="linkish" id="regenBtn">regenerar</button>`
+    : "";
+  if (sug) $("regenBtn").onclick = () => requestSuggestion(true);
+}
+
+// "Sugerir": ask the server to run the LLM on this review (it reuses a stored suggestion
+// unless `refresh`), then fill every dimension still unset. Values already chosen are kept.
+async function requestSuggestion(refresh = false) {
+  const r = S.current;
+  if (!r || S.suggesting) return;
+  S.suggesting = true;
+  const btn = $("suggestBtn");
+  btn.disabled = true;
+  const t0 = Date.now();
+  const tick = () => { btn.firstChild.textContent = `⏳ Sugiriendo… ${Math.round((Date.now() - t0) / 1000)}s `; };
+  tick(); const timer = setInterval(tick, 1000);
+  try {
+    const sug = await api("/api/suggest", { review_id: r.id, refresh });
+    if (S.current !== r) return;  // the labeler moved on meanwhile
+    r.suggestion = sug;
+    let n = 0;
+    S.dimKeys.forEach((d) => { if (S.scores[d] === undefined) { S.scores[d] = sug.scores[d]; n++; } });
+    renderDims(); renderSugInfo();
+    toast(n ? `Sugerencia aplicada en ${n} dimensión${n > 1 ? "es" : ""}` : "Sugerencia lista (ya estaban todas elegidas)");
+  } catch (e) {
+    toast("No se pudo sugerir: " + e.message, 6000);
+  } finally {
+    clearInterval(timer);
+    S.suggesting = false;
+    btn.disabled = false; btn.firstChild.textContent = "✨ Sugerir ";
+  }
+}
+
+function setScore(v, advance = true) {
+  S.scores[S.dimKeys[S.active]] = v;
+  if (advance && S.active < S.dimKeys.length - 1) S.active++;
+  renderDims();
+}
+
+async function loadNext() {
+  const r = await api(`/api/next?${q({ annotator: S.annotator, lang: S.lang })}`);
+  S.histIdx = -1;
+  if (r.done) {
+    S.current = null; S.queueId = null;
+    $("app").hidden = true; $("doneBox").hidden = false;
+  } else {
+    S.queueId = r.id;
+    showReview(r, "queue");
+  }
+  await refreshStats();
+  if (r.done) renderDone();
+}
+
+function renderDone() {
+  const st = S.stats; if (!st) return;
+  const scope = S.lang === "all" ? "" : ` en ${LANG_NAME[S.lang]}`;
+  const sel = S.lang === "all" ? st : st.by_lang[S.lang] || { total: 0, labeled: 0 };
+  const open = sel.total - sel.labeled;
+  $("doneTitle").textContent = open ? `⏳ Lo que queda${scope} lo tiene abierto otra persona`
+                                    : `🎉 No quedan reseñas por etiquetar${scope}`;
+  $("doneText").textContent = open
+    ? `${open} sin etiquetar, reservadas por otros anotadores (se liberan a los 15 min de inactividad).`
+    : "Exporta con: uv run tools/labeling/app.py export labels.jsonl";
+  const others = Object.entries(st.by_lang).filter(([l, v]) => l !== S.lang && v.total > v.labeled);
+  $("doneOther").textContent = S.lang !== "all" && others.length
+    ? "Quedan en otros idiomas: " + others.map(([l, v]) => `${LANG_NAME[l]} ${v.total - v.labeled}`).join(", ") + " (tecla g)."
+    : "";
+}
+
+async function setLang(lang) {
+  if (!LANGS.includes(lang) || lang === S.lang) return;
+  S.lang = lang; store.set("lang", lang);
+  renderLangSeg();
+  closeDrawers();
+  toast(lang === "all" ? "Todos los idiomas" : `Solo ${LANG_NAME[lang]}`);
+  await loadNext();
+}
+
+function renderLangSeg() {
+  const st = S.stats;
+  $("langSeg").innerHTML = "";
+  for (const l of LANGS) {
+    const b = document.createElement("button");
+    b.className = l === S.lang ? "on" : "";
+    const v = !st ? null : l === "all" ? st : st.by_lang[l];
+    b.innerHTML = LANG_LABEL[l] + (v ? ` <small>${v.total - v.labeled}</small>` : "");
+    b.title = v ? `${v.total - v.labeled} sin etiquetar` : "";
+    b.onclick = () => setLang(l);
+    $("langSeg").append(b);
+  }
+}
+
+async function save() {
+  if (!S.current || S.busy) return;
+  // Every dimension needs an explicit value (1-5 or N/A) before saving.
+  const missing = missingDims();
+  if (missing.length) {
+    S.showMissing = true;
+    S.active = S.dimKeys.indexOf(missing[0]);
+    renderDims();
+    document.querySelectorAll(".dim.missing").forEach((row) => {
+      row.classList.remove("shake"); void row.offsetWidth; row.classList.add("shake");
+    });
+    toast(`Falta: ${missing.map((d) => S.dims[d]).join(", ")}`);
+    return;
+  }
+  S.busy = true;
+  try {
+    const scores = {};
+    S.dimKeys.forEach((d) => (scores[d] = S.scores[d]));
+    const secs = (performance.now() - S.started) / 1000;
+    await api("/api/label", {
+      review_id: S.current.id, annotator: S.annotator, scores,
+      flagged: S.flagged, note: $("note").value, seconds: Math.min(secs, 600),
+    });
+    const wasNew = !S.current.label;
+    if (wasNew) { S.session.n++; S.session.secs += Math.min(secs, 600); }
+    toast(wasNew ? `#${S.current.id} guardada` : `#${S.current.id} actualizada`);
+    await refreshHistory();
+    await advance();
+  } catch (e) { toast("Error: " + e.message); }
+  finally { S.busy = false; }
+}
+
+async function skip() {
+  if (!S.current || S.busy || S.mode === "edit" || S.current.label) return;
+  S.busy = true;
+  try {
+    await api("/api/skip", { review_id: S.current.id, annotator: S.annotator });
+    toast(`#${S.current.id} saltada`);
+    await advance();
+  } catch (e) { toast("Error: " + e.message); }
+  finally { S.busy = false; }
+}
+
+// After saving/skipping: keep walking the skipped list if that is where we came from.
+async function advance() {
+  if (S.mode === "skipped") {
+    const done = S.current.id;
+    await refreshSkipped();
+    const next = S.skipped.find((x) => x.review_id !== done && !x.held_by) ||
+                 S.skipped.find((x) => x.review_id !== done);
+    if (next) return openReview(next.review_id, "skipped");
+    toast("No quedan saltadas");
+  }
+  await loadNext();
+}
+
+async function openReview(id, mode = "edit") {
+  // Opening from the skipped list claims the review so nobody else gets it meanwhile.
+  const params = mode === "skipped" ? `?${q({ annotator: S.annotator })}` : "";
+  const r = await api(`/api/review/${id}${params}`);
+  showReview(r, mode);
+  closeDrawers();
+}
+
+async function goBack() {
+  if (!S.history.length) await refreshHistory();
+  if (S.histIdx + 1 >= S.history.length) return toast("No hay anteriores");
+  S.histIdx++;
+  await openReview(S.history[S.histIdx].review_id);
+}
+
+async function backToQueue() {
+  if (S.mode === "queue") return;
+  await loadNext();
+}
+
+// ------------------------------------------------------------------- panels
+
+async function refreshStats() {
+  const st = await api(`/api/stats?${q({ annotator: S.annotator })}`);
+  S.stats = st;
+  const sel = S.lang === "all" ? st : st.by_lang[S.lang] || { total: 0, labeled: 0, skipped: 0 };
+  const pct = sel.total ? (100 * sel.labeled / sel.total) : 0;
+  $("bar").style.width = pct.toFixed(1) + "%";
+  $("progressText").textContent = (S.lang === "all" ? "" : LANG_LABEL[S.lang] + ": ") +
+    `${sel.labeled} / ${sel.total} (${pct.toFixed(0)}%)`;
+  const me = st.annotators.find((a) => a.annotator === S.annotator);
+  const avg = S.session.n ? S.session.secs / S.session.n : me?.avg_seconds;
+  const left = sel.total - sel.labeled;
+  const eta = avg ? (left * avg / Math.max(1, st.active)) / 3600 : null;
+  $("sessionText").textContent = `Sesión: ${S.session.n}` +
+    (avg ? ` · ${avg.toFixed(0)} s/reseña` : "") + (eta ? ` · faltan ≈${eta.toFixed(1)} h` : "");
+  $("skipCount").textContent = sel.skipped;
+  $("skipCount").style.opacity = sel.skipped ? 1 : 0.4;
+  renderLangSeg();
+
+  const langName = { en: "Inglés", es: "Español", pt: "Portugués" };
+  const dist = S.dimKeys.map((d) => {
+    const c = st.distribution[d];
+    return `<tr><td>${S.dims[d]}</td>${["N/A", "1", "2", "3", "4", "5"].map((k) => `<td>${c[k]}</td>`).join("")}</tr>`;
+  }).join("");
+  $("statsBody").innerHTML = `
+    <h3>Por idioma</h3>
+    <table><tr><th>Idioma</th><th>Etiquetadas</th><th>Total</th><th>%</th><th>Saltadas</th></tr>
+    ${Object.entries(st.by_lang).map(([l, v]) => `<tr><td>${langName[l] || l}</td><td>${v.labeled}</td><td>${v.total}</td><td>${v.total ? (100 * v.labeled / v.total).toFixed(0) : 0}%</td><td>${v.skipped}</td></tr>`).join("")}
+    </table>
+    <h3>Anotadores</h3>
+    <table><tr><th>Nombre</th><th>Total</th><th>Hoy</th><th>s/reseña</th><th>Marcadas</th></tr>
+    ${st.annotators.map((a) => `<tr><td>${esc(a.annotator)}</td><td>${a.labeled}</td><td>${a.today}</td><td>${a.avg_seconds ?? "–"}</td><td>${a.flagged}</td></tr>`).join("")}
+    </table>
+    <h3>Acuerdo con la IA</h3>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 6px">${st.suggested} reseñas con sugerencia. Igual = mismo valor; ±1 = a un punto (N/A tiene que coincidir).</p>
+    <table><tr><th></th><th>Comparadas</th><th>Igual</th><th>±1</th></tr>
+    ${S.dimKeys.map((d) => { const a = st.agreement[d]; const pc = (x) => a.n ? `${(100 * x / a.n).toFixed(0)}%` : "–";
+      return `<tr><td>${S.dims[d]}</td><td>${a.n}</td><td>${pc(a.exact)}</td><td>${pc(a.near)}</td></tr>`; }).join("")}
+    </table>
+    <h3>Distribución de puntajes</h3>
+    <table><tr><th></th><th>N/A</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>${dist}</table>
+    <p style="color:var(--muted);font-size:13px">Marcadas para revisar: ${st.flagged}</p>`;
+}
+
+async function refreshHistory() {
+  S.history = await api(`/api/history?annotator=${encodeURIComponent(S.annotator)}&limit=200`);
+  const fmt = (v) => (v == null ? "–" : v);
+  $("histBody").innerHTML = S.history.length ? "" : "<p style='color:var(--muted)'>Todavía nada.</p>";
+  for (const h of S.history) {
+    const div = document.createElement("div");
+    div.className = "hist-item";
+    div.innerHTML = `<div><b>#${h.review_id}</b> <span class="pill">${h.lang}</span> ${h.flagged ? "⚑" : ""}
+      <span class="sc">${S.dimKeys.map((d) => fmt(h[d])).join(" · ")}</span></div><div></div>`;
+    div.lastChild.textContent = h.snippet + "…";
+    div.addEventListener("click", () => { S.histIdx = S.history.indexOf(h); openReview(h.review_id); });
+    $("histBody").append(div);
+  }
+}
+
+async function refreshSkipped() {
+  S.skipped = await api(`/api/skipped?${q({ lang: S.lang })}`);
+  $("skippedScope").textContent = S.lang === "all" ? "· todos los idiomas" : `· ${LANG_NAME[S.lang]}`;
+  $("skippedBody").innerHTML = S.skipped.length ? "" : "<p style='color:var(--muted)'>No hay saltadas pendientes. 👌</p>";
+  for (const x of S.skipped) {
+    const div = document.createElement("div");
+    div.className = "hist-item" + (S.current && S.current.id === x.review_id ? " current" : "");
+    div.innerHTML = `<div><b>#${x.review_id}</b> <span class="pill">${x.lang}</span>
+      <small style="color:var(--muted)">saltada por ${esc(x.skipped_by)} · ${x.last_skipped} UTC</small>
+      ${x.held_by && x.held_by !== S.annotator ? `<span class="held">· abierta por ${esc(x.held_by)}</span>` : ""}</div><div></div>`;
+    div.lastChild.textContent = x.snippet + "…";
+    div.addEventListener("click", () => openReview(x.review_id, "skipped"));
+    $("skippedBody").append(div);
+  }
+}
+
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+function toggleDrawer(id) {
+  const el = $(id), open = !el.classList.contains("open");
+  closeDrawers();
+  if (open) el.classList.add("open");
+  if (open && id === "histDrawer") refreshHistory();
+  if (open && id === "statsDrawer") refreshStats();
+  if (open && id === "skippedDrawer") refreshSkipped();
+}
+function closeDrawers() { document.querySelectorAll(".drawer.open").forEach((d) => d.classList.remove("open")); }
+function anyDrawerOpen() { return !!document.querySelector(".drawer.open"); }
+
+// ----------------------------------------------------------------- keyboard
+
+document.addEventListener("keydown", (e) => {
+  if (!$("whoModal").hidden || e.ctrlKey || e.metaKey || e.altKey) return;
+  const inInput = e.target.tagName === "INPUT";
+  if (inInput) {
+    if (e.key === "Escape") e.target.blur();
+    else if (e.key === "Enter" && e.target.id === "note") { e.preventDefault(); e.target.blur(); save(); }
+    return;
+  }
+  const k = e.key;
+  if (k === "Escape") { if (anyDrawerOpen()) closeDrawers(); else backToQueue(); return; }
+  if (k === "i") return toggleDrawer("statsDrawer");
+  if (k === "l") return toggleDrawer("histDrawer");
+  if (k === "x") return toggleDrawer("skippedDrawer");
+  if (k === "g") return setLang(LANGS[(LANGS.indexOf(S.lang) + 1) % LANGS.length]);
+  if (k === "?") return toggleDrawer("guideDrawer");
+  if (!S.current) return;
+
+  if (k >= "1" && k <= "5") setScore(+k);
+  else if (k === "0" || k === "n") setScore(null);
+  else if (k === "ArrowDown" || k === "j" || k === "Tab" && !e.shiftKey) { S.active = Math.min(S.active + 1, S.dimKeys.length - 1); renderDims(); }
+  else if (k === "ArrowUp" || k === "k" || k === "Tab" && e.shiftKey) { S.active = Math.max(S.active - 1, 0); renderDims(); }
+  else if (k === "Enter") save();
+  else if (k === "s") skip();
+  else if (k === "f") { S.flagged = !S.flagged; renderDims(); if (S.flagged) $("note").focus(); }
+  else if (k === "Backspace" || k === "ArrowLeft") goBack();
+  else if (k === "h") { S.highlight = !S.highlight; store.set("highlight", S.highlight ? "1" : "0"); $("text").classList.toggle("hl", S.highlight); }
+  else if (k === "e") { if (!$("origBox").hidden) $("origBox").open = !$("origBox").open; }
+  else if (k === "z") { S.scores = {}; S.active = 0; renderDims(); }
+  else if (k === "a") requestSuggestion();
+  else return;
+  e.preventDefault();
+});
+
+// --------------------------------------------------------------------- init
+
+$("saveBtn").onclick = save;
+$("suggestBtn").onclick = () => requestSuggestion();
+$("skipBtn").onclick = skip;
+$("prevBtn").onclick = goBack;
+$("backToQueue").onclick = backToQueue;
+$("flagBtn").onclick = () => { S.flagged = !S.flagged; renderDims(); };
+$("openStats").onclick = () => toggleDrawer("statsDrawer");
+$("openHist").onclick = () => toggleDrawer("histDrawer");
+$("openSkipped").onclick = () => toggleDrawer("skippedDrawer");
+$("openGuide").onclick = () => toggleDrawer("guideDrawer");
+document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = closeDrawers));
+$("changeWho").onclick = () => { $("whoInput").value = S.annotator || ""; $("whoModal").hidden = false; $("whoInput").focus(); };
+$("whoForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const name = $("whoInput").value.trim();
+  if (!name) return;
+  S.annotator = name; store.set("annotator", name); $("whoName").textContent = name;
+  $("whoModal").hidden = true;
+  S.session = { n: 0, secs: 0 }; S.history = [];
+  await loadNext();
+};
+
+(async function init() {
+  const cfg = await api("/api/config");
+  S.dims = cfg.dimensions; S.dimKeys = Object.keys(cfg.dimensions);
+  S.highlight = store.get("highlight") !== "0";
+  const langFromUrl = new URLSearchParams(location.search).get("lang");  // e.g. /?lang=pt
+  S.lang = LANGS.includes(langFromUrl) ? langFromUrl : LANGS.includes(store.get("lang")) ? store.get("lang") : "all";
+  store.set("lang", S.lang);
+  renderLangSeg();
+  buildHighlighter(); buildDims();
+  const fromUrl = new URLSearchParams(location.search).get("annotator");  // e.g. /?annotator=ana
+  if (fromUrl) store.set("annotator", fromUrl.trim());
+  S.annotator = fromUrl ? fromUrl.trim() : store.get("annotator");
+  if (!S.annotator) { $("app").hidden = true; $("whoModal").hidden = false; $("whoInput").focus(); return; }
+  $("whoName").textContent = S.annotator;
+  await loadNext();
+})();
+</script>
+</body>
+</html>

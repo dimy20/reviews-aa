@@ -1,0 +1,10 @@
+# Caddy gets and renews the HTTPS certificate for this name automatically.
+# The DNS A record for LABELS_DOMAIN must point at the droplet first.
+{$LABELS_DOMAIN} {
+	# The labeling tool has no login of its own: everything sits behind this password.
+	basic_auth {
+		{$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+	}
+	encode zstd gzip
+	reverse_proxy app:8765
+}
