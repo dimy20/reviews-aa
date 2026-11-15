@@ -7,4 +7,8 @@ requires-python = ">=3.11"
 dependencies = [
     "fasttext-wheel>=0.9.2",
     "langdetect>=1.0.9",
+    "sacremoses>=0.2.0",
+    "sentencepiece>=0.2.3",
+    "setuptools<81",
+    "unbabel-comet>=2.2.7",
 ]
