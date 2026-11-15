@@ -5,10 +5,30 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "fasttext-wheel>=0.9.2",
+    "iterative-stratification>=0.1.9",
+    "langchain>=1.4.8",
+    "langchain-openrouter>=0.2.9",
     "langdetect>=1.0.9",
+    "matplotlib>=3.11.2",
+    "pandas>=3.1.0",
+    "typesafe-sdk>=0.7.5",
+]
+
+[dependency-groups]
+dev = [
+    "jupyterlab>=4.6.5",
+]
+# Notebooks de traducción y detección de idioma.
+# No se instalan en la imagen Docker de la herramienta de etiquetado.
+# Instalar con: uv sync --all-groups
+ml = [
+    "fasttext-wheel>=0.9.2",  # con numpy 2 usar modelo.f.predict(...): modelo.predict(...) falla
     "sacremoses>=0.2.0",
     "sentencepiece>=0.2.3",
-    "setuptools<81",
+    "setuptools<81",  # COMET usa un torchmetrics viejo que necesita pkg_resources
     "unbabel-comet>=2.2.7",
 ]
+
+[tool.uv]
+# unbabel-comet pide numpy<2, pero pandas>=3.1 necesita numpy 2: se ignora el límite de COMET (probado: mismos puntajes)
+override-dependencies = ["numpy>=2.0.2"]

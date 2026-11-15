@@ -1,0 +1,12 @@
+# Keep the image small and free of data/secrets: only what the Dockerfile COPYs matters.
+.git
+.venv
+**/__pycache__
+notebooks/
+docs/
+jupyter.sh
+deploy/
+**/*.db
+**/*.db-*
+**/*.env
+.env*
