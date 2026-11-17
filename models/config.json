@@ -1,0 +1,11 @@
+{
+    "kev": {
+        "type": "pod",
+        "name": "kev",
+        "id": "j0rb1tnec5awkp",
+        "urls": {
+            "base": "https://j0rb1tnec5awkp-8000.proxy.runpod.net",
+            "health": "https://j0rb1tnec5awkp-8000.proxy.runpod.net/ping"
+        }
+    }
+}
