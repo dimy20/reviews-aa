@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "fastapi>=0.141.1",
     "iterative-stratification>=0.1.9",
     "langchain>=1.4.8",
     "langchain-openrouter>=0.2.9",
@@ -12,8 +13,11 @@ dependencies = [
     "matplotlib>=3.11.2",
     "openrouter>=0.11.46",
     "pandas>=3.1.0",
+    "pydantic-settings>=2.16.3",
+    "pyyaml>=6.0.3",
     "runpod>=1.12.0",
     "typesafe-sdk>=0.7.5",
+    "uvicorn>=0.54.0",
 ]
 
 [dependency-groups]

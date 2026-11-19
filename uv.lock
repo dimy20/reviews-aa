@@ -5144,6 +5144,7 @@ name = "reviews"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "fastapi" },
     { name = "iterative-stratification" },
     { name = "langchain" },
     { name = "langchain-openrouter" },
@@ -5151,8 +5152,11 @@ dependencies = [
     { name = "matplotlib" },
     { name = "openrouter" },
     { name = "pandas" },
+    { name = "pydantic-settings" },
+    { name = "pyyaml" },
     { name = "runpod" },
     { name = "typesafe-sdk" },
+    { name = "uvicorn" },
 ]
 
 [package.dev-dependencies]
@@ -5169,6 +5173,7 @@ ml = [
 
 [package.metadata]
 requires-dist = [
+    { name = "fastapi", specifier = ">=0.141.1" },
     { name = "iterative-stratification", specifier = ">=0.1.9" },
     { name = "langchain", specifier = ">=1.4.8" },
     { name = "langchain-openrouter", specifier = ">=0.2.9" },
@@ -5176,8 +5181,11 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "openrouter", specifier = ">=0.11.46" },
     { name = "pandas", specifier = ">=3.1.0" },
+    { name = "pydantic-settings", specifier = ">=2.16.3" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "runpod", specifier = ">=1.12.0" },
     { name = "typesafe-sdk", specifier = ">=0.7.5" },
+    { name = "uvicorn", specifier = ">=0.54.0" },
 ]
 
 [package.metadata.requires-dev]

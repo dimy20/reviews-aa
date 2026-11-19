@@ -8,7 +8,7 @@ Uso (desde la raiz del repo):
 Antes de usarlo, en el .env de la raiz:
 
     RUNPOD_API_KEY=...    # para crear y borrar el pod
-    MODELS_API_KEY=...    # clave que va a pedir kev (cualquier string largo y random)
+    KEV_API_KEY=...    # clave que va a pedir kev (cualquier string largo y random)
     HF_TOKEN=...          # opcional, para bajar los pesos de Hugging Face
 
 Como funciona:
@@ -19,7 +19,7 @@ Como funciona:
 - `down` borra el pod entero; los pesos siguen en el volume. Si ya hay un pod en models/config.json,
   `up` no crea otro.
 - Para llamar a kev: notebooks/05_modelos_desplegados/03_kev_etiquetado.ipynb (lee la URL de
-  models/config.json y manda `Authorization: Bearer $MODELS_API_KEY`).
+  models/config.json y manda `Authorization: Bearer $KEV_API_KEY`).
 - Logs de kev: consola de RunPod -> pod `kev` -> Logs.
 """
 
@@ -67,9 +67,9 @@ CREATE_ATTEMPTS = 20
 CREATE_WAIT_S = 30   # 20 x 30 s = 10 min
 
 def create_kev_pod(name: str = "kev") -> dict:
-    api_key = os.environ.get("MODELS_API_KEY")
+    api_key = os.environ.get("KEV_API_KEY")
     if not api_key:
-        raise SystemExit("Falta MODELS_API_KEY en .env (la clave que pide kev)")
+        raise SystemExit("Falta KEV_API_KEY en .env (la clave que pide kev)")
 
     pod = None
     for attempt in range(1, CREATE_ATTEMPTS + 1):
