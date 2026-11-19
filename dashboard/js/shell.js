@@ -5,17 +5,23 @@ import { applyFilters, timeRange, DEFAULT_FILTERS } from './metrics.js';
 import { $, $$, h, icon, img, toast, nf0, monthLabel, LANG } from './ui.js';
 
 const NAV = [
-  { id: 'resumen', label: 'Resumen', icon: 'chart', href: 'index.html#top' },
-  { id: 'resenas', label: 'Reseñas', icon: 'message', href: 'resenas.html' },
-  { id: 'aspectos', label: 'Aspectos', icon: 'layers', href: 'index.html#aspectos' },
-  { id: 'evolucion', label: 'Evolución', icon: 'trend', href: 'index.html#evolucion' },
+  { id: 'resumen', label: 'Resumen', icon: 'chart', href: 'index.html',
+    // Secciones del Resumen: la marcada cambia a medida que bajás.
+    subs: [{ id: 'resena', label: 'Reseñas' }, { id: 'aspectos', label: 'Por aspecto' }] },
 ];
 
 // ---------- Menú lateral ----------
 function mountSidebar(page) {
   const el = $('#sidebar');
 
-  const links = NAV.map((n) => h('a', { class: 'nav-item', href: n.href, 'data-nav': n.id }, icon(n.icon), h('span', { text: n.label })));
+  const links = NAV.flatMap((n) => [
+    h('a', { class: 'nav-item', href: n.href, 'data-nav': n.id }, icon(n.icon), h('span', { text: n.label })),
+    n.subs ? h('div', { class: 'nav-sub' }, n.subs.map((s) => h('a', {
+      class: 'nav-subitem', 'data-sub': s.id,
+      href: s.id === n.subs[0].id ? n.href : `${n.href}#${s.id}`,
+      onclick: page === n.id ? (e) => { e.preventDefault(); goTo(s.id, s.id === n.subs[0].id); } : null,
+    }, s.label))) : null,
+  ]);
 
   const extra = h('div', { class: 'nav-extra' },
     h('a', { class: 'nav-item small', href: CONFIG.publicForm, target: '_blank', rel: 'noopener' }, icon('external', 18), h('span', { text: 'Formulario público' })));
@@ -26,29 +32,40 @@ function mountSidebar(page) {
     extra,
     h('div', { class: 'leaves', 'aria-hidden': 'true' }, img('img/brownie-rincon.webp')));
 
-  const setActive = (id) => $$('[data-nav]', el).forEach((a) => a.classList.toggle('active', a.dataset.nav === id));
-  setActive(page);
-  if (page === 'resumen') {
-    // Resalta Aspectos / Evolución según la sección visible.
-    const spy = () => {
-      let cur = 'resumen';
-      for (const id of ['evolucion', 'aspectos']) {
-        const s = document.getElementById(id);
-        if (s && s.getBoundingClientRect().top < innerHeight * 0.4) { cur = id; break; }
-      }
-      setActive(cur);
-    };
-    addEventListener('scroll', () => requestAnimationFrame(spy), { passive: true });
+  for (const a of $$('[data-nav]', el)) {
+    a.classList.toggle('active', a.dataset.nav === page);
+    if (a.dataset.nav === page) a.setAttribute('aria-current', 'page');
   }
+  return page === 'resumen' ? spySections(el) : null;
+}
+
+// Lleva a una sección del Resumen; la primera es el principio de la página.
+function goTo(id, isFirst) {
+  const target = document.getElementById(id);
+  if (isFirst || !target) scrollTo({ top: 0, behavior: 'smooth' });
+  else target.scrollIntoView({ behavior: 'smooth' });
+  history.replaceState(null, '', isFirst ? location.pathname : `#${id}`);
+}
+
+// Marca en el menú la sección que se está viendo.
+function spySections(el) {
+  const subs = [...$$('[data-sub]', el)];
+  const spy = () => {
+    const last = document.getElementById(subs[subs.length - 1].dataset.sub);
+    const doc = document.documentElement;
+    const atEnd = scrollY > 0 && scrollY + innerHeight >= doc.scrollHeight - 4;
+    const cur = last && last.offsetParent && (atEnd || last.getBoundingClientRect().top < innerHeight * 0.55)
+      ? last.id : subs[0].dataset.sub;
+    for (const a of subs) a.classList.toggle('active', a.dataset.sub === cur);
+  };
+  addEventListener('scroll', spy, { passive: true });
+  addEventListener('resize', spy);
+  spy();
+  return spy;
 }
 
 // ---------- Estado de la sincronización ----------
 function mountSync() {
-  // Botón visible para abrir la página que ven los clientes
-  const sync = $('#sync');
-  const wrap = h('div', { class: 'head-actions' });
-  sync.replaceWith(wrap);
-  wrap.append(h('a', { class: 'btn primary form-link', href: CONFIG.publicForm, target: '_blank', rel: 'noopener' }, icon('external', 18), 'Ver formulario de clientes'), sync);
   const dot = h('i', { class: 'dot' });
   const main = h('b');
   const sub = h('span');
@@ -154,9 +171,13 @@ export async function boot(page, onData) {
     emit();
   }
 
-  mountSidebar(page);
+  const spy = mountSidebar(page);
 
   await refresh();
+  // Si se llegó con #aspectos desde otra página, ir ahí ahora que el contenido ya tiene su alto.
+  const hashTarget = location.hash && document.getElementById(location.hash.slice(1));
+  if (hashTarget) hashTarget.scrollIntoView({ behavior: 'instant' });
+  if (spy) spy();
   if (CONFIG.apiBase) setInterval(refresh, CONFIG.refreshSeconds * 1000);
 
   // Reseñas enviadas desde el formulario público en otra pestaña de este navegador.

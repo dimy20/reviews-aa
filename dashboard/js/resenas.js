@@ -1,9 +1,10 @@
 import { CONFIG } from './config.js';
 import { DIMS } from './data.js';
 import { boot } from './shell.js';
-import { saveAction, status } from './api.js';
-import { $, h, icon, stars, f1, pct, nf0, plural, dayLabel, stripAcc, highlight, toast, DIM_ICON } from './ui.js';
-import { compute, weakest, fragment, explainReview } from './metrics.js';
+import { saveAction } from './api.js';
+import { $, h, icon, stars, f1, pct, nf0, plural, dayLabel, stripAcc, highlight, toast } from './ui.js';
+import { compute, weakest } from './metrics.js';
+import { metaLine, reviewMeta, reviewAnalysis } from './review.js';
 
 const params = new URLSearchParams(location.search);
 const S = {
@@ -103,10 +104,6 @@ function listRows() {
   return rows;
 }
 
-function metaLine(r) {
-  return [r.t != null ? dayLabel(r.t) : '', r.source, r.lang ? r.lang.toUpperCase() : ''].filter(Boolean).join(' · ');
-}
-
 function scoreChips(r, focus = -1) {
   if (r.pending) return h('div', { class: 'chips' }, h('span', { class: 'chip wait' }, icon('clock', 14), 'En análisis'));
   const chips = r.s.map((v, i) => (v ? h('span', { class: `chip ${v <= 2 ? 'neg' : v >= 4 ? 'pos' : ''}${i === focus ? ' focus' : ''}` }, DIMS[i].label, h('b', { text: f1(v) })) : null));
@@ -156,7 +153,7 @@ function renderDetail() {
   const parts = [
     back,
     h('h2', { class: 'detail-title', text: 'Detalle de la reseña' }),
-    h('div', { class: 'meta' }, r.rating ? stars(r.rating, 18) : h('span', { class: 'no-rating', text: 'Sin estrellas' }), h('span', { text: metaLine(r) }), r.name ? h('span', { text: `· ${r.name}` }) : null),
+    reviewMeta(r),
     h('blockquote', { class: 'quote big' }, '“', highlight(r.text, S.q), '”'),
   ];
   if (r.orig) {
@@ -164,24 +161,7 @@ function renderDetail() {
     parts.push(det);
   }
 
-  if (r.pending) {
-    parts.push(h('div', { class: 'notice' }, icon('clock', 18), h('span', { text: 'Esta reseña llegó desde el formulario y todavía no pasó por el modelo. Cuando la API la procese, acá vas a ver el puntaje y la explicación de cada aspecto.' })));
-  } else {
-    parts.push(h('h3', { class: 'sub-title', text: 'Análisis por aspecto' }));
-    parts.push(h('div', { class: 'table-scroll' }, h('table', { class: 'asp-table' },
-      h('thead', null, h('tr', null, ['Aspecto', 'Puntuación', 'Fragmento', 'Explicación'].map((t) => h('th', { text: t })))),
-      h('tbody', null, DIMS.map((d, i) => {
-        const v = r.s[i];
-        const name = h('td', { class: 'a-name' }, icon(DIM_ICON[i], 18), d.label);
-        if (!v) return h('tr', { class: 'na' }, name, h('td', { colspan: 3, text: 'No lo menciona (N/A)' }));
-        const frag = fragment(r.text, i);
-        return h('tr', null, name,
-          h('td', { class: 'a-score' }, h('span', null, h('b', { text: f1(v) }), ' / 5'), h('span', { class: 'mini' }, h('i', { class: v <= 2 ? 'neg' : v >= 4 ? 'pos' : 'mid', style: `width:${v * 20}%` }))),
-          h('td', { class: 'a-frag' }, frag ? h('q', null, highlight(frag, S.q)) : h('span', { class: 'muted', text: '—' })),
-          h('td', { class: 'a-expl', text: (r.ev && r.ev[i]) || '—' }));
-      })))));
-    parts.push(h('h3', { class: 'sub-title', text: 'Explicación general' }), h('p', { class: 'general', text: explainReview(r) }));
-  }
+  parts.push(...reviewAnalysis(r, S.q));
 
   // Respuesta y seguimiento
   if (r.reply && !S.replying) {
@@ -209,7 +189,7 @@ function renderDetail() {
         await act(r, { follow: !r.follow }, r.follow ? 'Quitada de seguimiento.' : 'Marcada para seguimiento.');
         render();
       } }, icon('flag', 18), r.follow ? 'En seguimiento' : 'Marcar para seguimiento')));
-    if (status.mode !== 'api') parts.push(h('p', { class: 'muted small note', text: 'En modo demostración las respuestas y el seguimiento se guardan en este navegador. Con la API conectada se guardan en el servidor.' }));
+    parts.push(h('p', { class: 'muted small note', text: 'Las respuestas y el seguimiento se guardan en este navegador.' }));
   }
   el.replaceChildren(...parts);
 }

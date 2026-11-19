@@ -88,56 +88,7 @@ export function compute(rows) {
 // Aspectos con menciones suficientes para sacar conclusiones.
 export const reliable = (st) => st.dims.filter((d) => d.m >= Math.max(5, st.n * 0.03));
 export const weakest = (st) => [...reliable(st)].sort((a, b) => a.avg - b.avg)[0] || null;
-export const strongest = (st) => [...reliable(st)].sort((a, b) => b.avg - a.avg)[0] || null;
 export const priorities = (st) => st.dims.filter((d) => d.neg >= 3).sort((a, b) => b.priority - a.priority);
-
-const avgOf = (rows, i, min = 5) => {
-  let s = 0, n = 0;
-  for (const r of rows) if (r.s[i]) { s += r.s[i]; n++; }
-  return n >= min ? s / n : null;
-};
-
-// Cambio del promedio del aspecto: contra el período anterior si existe;
-// si se ve todo el historial, últimos 12 meses contra los 12 anteriores.
-export function trend(cur, prev, i) {
-  if (prev) {
-    const a = avgOf(cur, i), b = avgOf(prev, i);
-    return a != null && b != null ? { d: a - b, basis: 'vs. período anterior' } : null;
-  }
-  const [, end] = timeRange(cur);
-  if (end == null) return null;
-  const y = 365.25 * DAY;
-  const a = avgOf(cur.filter((r) => r.t != null && r.t > end - y), i);
-  const b = avgOf(cur.filter((r) => r.t != null && r.t <= end - y && r.t > end - 2 * y), i);
-  return a != null && b != null ? { d: a - b, basis: 'últimos 12 meses vs. 12 anteriores' } : null;
-}
-
-// ---------- Series en el tiempo ----------
-const monthFmt = new Intl.DateTimeFormat('es-AR', { month: 'short', year: '2-digit', timeZone: 'UTC' });
-export function buckets(rows) {
-  const ts = rows.map((r) => r.t).filter((t) => t != null);
-  if (ts.length < 2) return null;
-  const a = minOf(ts), b = maxOf(ts);
-  const months = (b - a) / (30.44 * DAY);
-  const gran = months <= 18 ? 'month' : months <= 72 ? 'quarter' : 'year';
-  const step = gran === 'year' ? 12 : gran === 'quarter' ? 3 : 1;
-  const keyOf = (t) => {
-    const d = new Date(t), y = d.getUTCFullYear(), m = d.getUTCMonth();
-    return y * 12 + Math.floor(m / step) * step;
-  };
-  const k0 = keyOf(a), k1 = keyOf(b);
-  if (k0 === k1) return null;
-  const list = [];
-  for (let k = k0; k <= k1; k += step) list.push({ k, rows: [] });
-  for (const r of rows) if (r.t != null) list[(keyOf(r.t) - k0) / step].rows.push(r);
-  const label = (k) => {
-    const y = Math.floor(k / 12), m = k % 12;
-    if (gran === 'year') return String(y);
-    if (gran === 'quarter') return `T${m / 3 + 1} ${String(y).slice(2)}`;
-    return monthFmt.format(Date.UTC(y, m, 1)).replace('.', '');
-  };
-  return { gran, list: list.map((x) => ({ label: label(x.k), rows: x.rows })) };
-}
 
 // ---------- Qué impulsa cada aspecto ----------
 // Grupos de palabras (en/es/pt) por aspecto. Se buscan en el texto y en el original.
@@ -223,10 +174,10 @@ const ACTIONS = [
   { filas: 'Reforzar el personal en los horarios con más fila.',
     demora: 'Medir el tiempo entre pedido y entrega para encontrar el cuello de botella.',
     'tiempo de espera': 'Informar el tiempo estimado de espera al tomar el pedido.',
-    rapidez: 'Mantener en hora pico los procesos que hoy hacen rápido el servicio.',
+    rapidez: 'Medir los tiempos en hora pico, cuando el servicio deja de ser rápido.',
     'local lleno': 'Ofrecer pedido anticipado o para llevar en los horarios de más demanda.',
     _: 'Revisar la organización del servicio en los horarios de más demanda.' },
-  { amabilidad: 'Reconocer al equipo en las reseñas que lo elogian y replicar esas prácticas.',
+  { amabilidad: 'Reforzar con el equipo el trato cordial en cada atención.',
     'mal trato': 'Revisar los casos de mal trato y capacitar al equipo en atención al cliente.',
     personal: 'Dar seguimiento a las reseñas que nombran al personal.',
     ayuda: 'Asegurar que el equipo pueda orientar sobre el menú y las opciones.',
@@ -235,7 +186,7 @@ const ACTIONS = [
     _: 'Capacitar al equipo en trato y comunicación con el cliente.' },
   { caro: 'Comparar el precio de los productos más criticados con la competencia.',
     precio: 'Revisar la estructura de precios de los productos más mencionados.',
-    barato: 'Destacar en la comunicación los productos con mejor precio.',
+    barato: 'Revisar que el precio bajo no se note en la calidad.',
     'calidad-precio': 'Comunicar mejor qué incluye cada producto para reforzar su valor.',
     porciones: 'Revisar el tamaño de las porciones en relación con su precio.',
     promociones: 'Evaluar combos o promociones en los productos con más quejas de precio.',
@@ -243,9 +194,9 @@ const ACTIONS = [
     _: 'Revisar precios y porciones de los productos con más quejas.' },
   { ambiente: 'Revisar iluminación, música y comodidad del salón.',
     limpieza: 'Reforzar la limpieza del salón, las mesas y los baños.',
-    decoración: 'Mantener y renovar la decoración que los clientes valoran.',
-    volvería: 'Fidelizar a quienes dicen que volverían (novedades, beneficios).',
-    recomendación: 'Invitar a los clientes satisfechos a dejar su reseña.',
+    decoración: 'Renovar la decoración y el mantenimiento del salón.',
+    volvería: 'Contactar a quienes dicen que no volverían para entender qué falló.',
+    recomendación: 'Revisar por qué algunos clientes no recomiendan el lugar.',
     estacionamiento: 'Informar opciones de estacionamiento cercanas.',
     'espacio y mesas': 'Revisar la cantidad y la distribución de mesas.',
     ruido: 'Reducir el ruido del salón en hora pico.',

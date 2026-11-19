@@ -4,8 +4,8 @@ Dos partes, en HTML, CSS y JS sin librerías ni build:
 
 | Página | Para quién | Qué hace |
 |---|---|---|
-| `index.html` (Resumen) | Restaurante | Reseñas recibidas desde el formulario, rating, quejas escondidas en reseñas de 4–5 ★, lo importante, dónde actuar primero, desempeño y evolución por aspecto, y el análisis de cada aspecto (conclusiones, acciones sugeridas, qué impulsa el resultado, reseñas relacionadas). |
-| `resenas.html` (Reseñas) | Restaurante | Explorador: las reseñas recibidas desde el formulario aparecen primero; búsqueda, filtros y atajos ("Quejas en 4–5 ★", "Precio crítico", "Sin respuesta", "En seguimiento", "Recibidas del formulario"), el detalle de cada reseña con puntaje, fragmento y explicación por aspecto, y los botones **Responder** y **Marcar para seguimiento**. |
+| `index.html` (Resumen) | Restaurante | Arriba, **reseña por reseña** (de la más nueva a la más vieja, con flechas) con el puntaje, el fragmento y la explicación de cada aspecto. Al lado, cuántas reseñas hay con su promedio de estrellas y **lo principal a arreglar**, con qué hacer. Abajo, el promedio de cada aspecto. |
+| `resenas.html` (Reseñas) | Restaurante | No está en el menú: se abre desde el Resumen ("Responder o marcar en Reseñas", "Ver esas reseñas" o una tarjeta de aspecto). Explorador: las reseñas recibidas desde el formulario aparecen primero; búsqueda, filtros y atajos ("Quejas en 4–5 ★", "Precio crítico", "Sin respuesta", "En seguimiento", "Recibidas del formulario"), el detalle de cada reseña con puntaje, fragmento y explicación por aspecto, y los botones **Responder** y **Marcar para seguimiento**. |
 | `opinar.html` | Clientes | Formulario para dejar una reseña: texto obligatorio, estrellas opcionales y nombre opcional. En español, portugués e inglés (`opinar.html?lang=pt` o `?lang=en`). |
 
 ## Abrirlo
@@ -29,7 +29,7 @@ Paleta (variables al principio de `css/app.css`): **Carbón profundo** `#1F1E1C`
 
 | Archivo | Dónde se usa |
 |---|---|
-| `img/brownie-plato.webp` | Tarjeta "Lo importante hoy" y banda del análisis por aspecto |
+| `img/brownie-plato.webp` | Tarjeta oscura "Lo principal a arreglar" del Resumen |
 | `img/brownie-rincon.webp` | Abajo en la barra lateral |
 | `img/brownie-torre.webp` | Panel oscuro del formulario para clientes |
 
@@ -75,11 +75,9 @@ Cada `Reseña` sigue el formato de `data/reviews.json`. Solo `id` y `text` son o
 
 ## Cómo se calculan algunas cosas
 
-- **Dónde actuar primero**: ordena los aspectos por el % de reseñas que se quejan de cada uno, multiplicado por cuántas estrellas pierde la reseña cuando ese aspecto falla.
-- **Qué impulsa este resultado**: grupos de palabras en/es/pt por aspecto ("caro", "porciones", "filas", "mal trato"…) contados en las reseñas negativas y en las positivas. Las listas están en `js/metrics.js`.
-- **Acciones sugeridas**: una sugerencia fija por grupo de palabras, elegida según lo que más se repite en las quejas. No es un LLM.
+- **Lo principal a arreglar**: el aspecto con más peso en las quejas, es decir, el % de reseñas que se quejan de él multiplicado por cuántas estrellas pierde la reseña cuando ese aspecto falla.
+- **Qué hacer**: una sugerencia fija según las palabras que más se repiten en esas quejas ("filas", "caro", "mal trato"…). Las listas están en `js/metrics.js`. No es un LLM.
 - **Fragmento**: la frase de la reseña que contiene palabras del aspecto. Es una aproximación por palabras clave, no lo que citó el modelo.
-- **Tendencia**: cambio del promedio contra el período anterior. Si se ve todo el historial, compara los últimos 12 meses con los 12 anteriores.
 
 ## Datos de ejemplo
 
@@ -99,7 +97,7 @@ dashboard/
 │   ├── data.js      normalización de las reseñas
 │   ├── metrics.js   métricas, palabras clave, acciones y explicaciones
 │   ├── shell.js     menú, filtros y estado de la sincronización
-│   ├── charts.js    gráfico de líneas en SVG
+│   ├── review.js    una reseña con su tabla de aspectos (Resumen y Reseñas)
 │   ├── ui.js        utilidades e íconos
 │   └── resumen.js · resenas.js · opinar.js
 ├── img/

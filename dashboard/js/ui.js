@@ -17,7 +17,8 @@ export const dayLabel = (t) => dFmt.format(t).replace('.', '');
 export const stripAcc = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 export const SERIES = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)'];
-export const DIM_ICON = ['bowl', 'user', 'clock', 'tag', 'heart'];
+// Mismo orden que DIMS: comida, espera, atención, precio, experiencia.
+export const DIM_ICON = ['bowl', 'clock', 'user', 'tag', 'heart'];
 export const LANG = { es: 'Español', pt: 'Portugués', en: 'Inglés' };
 
 export function h(tag, props, ...kids) {
@@ -58,6 +59,7 @@ const P = {
   reply: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v5"/>',
   flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
   back: '<path d="m15 18-6-6 6-6"/>',
+  next: '<path d="m9 18 6-6-6-6"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
   sparkle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
