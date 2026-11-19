@@ -1,7 +1,6 @@
 import sqlite3
-from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "reviews.db"
+from settings import get_settings
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS reviews (
@@ -21,7 +20,7 @@ CREATE TABLE IF NOT EXISTS reviews (
 
 
 def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(get_settings().reviews_db_path)
     conn.row_factory = sqlite3.Row  # rows behave like dicts
     return conn
 

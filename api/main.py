@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 import runpod
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from api.db import get_connection, init_db
@@ -15,6 +16,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Reviews API", lifespan=lifespan)
+
+# The dashboard is served from another origin (port), and there's no login yet,
+# so allow any origin (see dashboard/README.md).
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 class AnalyzeRequest(BaseModel):
     text: str

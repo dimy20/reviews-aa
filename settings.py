@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     hf_token: str = ""
     infra_config_path: Path = ROOT / "infra.yaml"
+    reviews_db_path: Path = ROOT / "api" / "reviews.db"  # in Docker: /data/reviews.db (a volume)
 
     @property
     def infra(self) -> InfraSettings:

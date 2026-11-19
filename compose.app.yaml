@@ -1,0 +1,40 @@
+# Reviews API + dashboard. Separate from compose.yaml (the labeling tool).
+#
+#   docker compose -f compose.app.yaml up -d --build
+#
+#   dashboard: http://localhost:8080
+#   api:       http://localhost:8000/docs
+#
+# Ports are bound to 127.0.0.1 only: Docker's published ports bypass ufw.
+
+name: reviews-app  # own project name, so it never touches the compose.yaml stack
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    env_file: .env                    # RUNPOD_API_KEY, KEV_API_KEY, OPENROUTER_API_KEY, HF_TOKEN
+    environment:
+      REVIEWS_DB_PATH: /data/reviews.db
+    volumes:
+      - api-data:/data                # reviews.db (reviews + pods), survives rebuilds
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+
+  dashboard:
+    build: ./dashboard
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      # Called from the browser, not from the container: it must be the API's
+      # address as the browser sees it.
+      API_BASE: ${API_BASE:-http://localhost:${API_PORT:-8000}}
+    ports:
+      - "127.0.0.1:${DASHBOARD_PORT:-8080}:80"
+
+volumes:
+  api-data:

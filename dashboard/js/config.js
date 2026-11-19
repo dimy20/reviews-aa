@@ -1,4 +1,6 @@
 // Configuración del dashboard. Es lo único que hay que tocar para conectarlo.
+import { ENV } from './env.js';
+
 export const CONFIG = {
   appName: 'RestoAnalytics',
   restaurant: 'Dolci B&E',
@@ -6,7 +8,8 @@ export const CONFIG = {
   // URL base de la API (sin barra final), por ejemplo 'http://127.0.0.1:8000'.
   // Usa GET /reviews/ y POST /reviews/analyze.
   // Vacío = modo demostración: lee data/reviews.json y guarda todo en este navegador.
-  apiBase: '',
+  // Sale de js/env.js (en Docker, de la variable API_BASE).
+  apiBase: ENV.API_BASE,
 
   // Cada cuántos segundos se piden reseñas nuevas a la API.
   refreshSeconds: 15,
