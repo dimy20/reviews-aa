@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resumen · RestoAnalytics</title>
+  <meta name="description" content="Rendimiento y oportunidades del restaurante a partir de sus reseñas.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='4' fill='%231F1E1C'/><path d='M4.5 12V9M8 12V5M11.5 12V7.5' stroke='%23C7894B' stroke-width='1.8' stroke-linecap='round'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main" id="top">
+    <header class="page-head">
+      <div>
+        <h1>Análisis de reseñas</h1>
+      </div>
+      <div class="sync" id="sync" role="status"></div>
+    </header>
+
+    <section class="filters" id="filters" aria-label="Filtros"></section>
+
+    <div id="content">
+      <section class="kpis" id="kpis" aria-label="Indicadores"></section>
+
+      <section class="card received" id="received" hidden>
+        <div class="related-head">
+          <h2 class="card-title">Reseñas recibidas</h2>
+          <a class="link" href="resenas.html?preset=pending">Ver en Reseñas <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        </div>
+        <p class="muted small">Llegaron desde el formulario y esperan el análisis del modelo.</p>
+        <div class="received-list" id="received-list"></div>
+      </section>
+
+      <section class="row-important">
+        <div class="dark-card">
+          <h2>Lo importante hoy</h2>
+          <ul class="bullets" id="important-list"></ul>
+          <div class="dark-img" aria-hidden="true">
+            <img src="img/brownie-plato.webp" alt="">
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Dónde actuar primero</h2>
+          <ol class="priority" id="priority"></ol>
+          <a class="link" href="resenas.html?sent=neg">Ver todas las quejas <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>Desempeño por aspecto</h2>
+          <p class="muted small">Promedio de 1 a 5 entre las reseñas que mencionan cada aspecto. Elegí uno para ver su análisis.</p>
+        </div>
+        <div class="aspects" id="aspects"></div>
+      </section>
+
+      <section class="row-evo" id="evolucion">
+        <div class="card">
+          <h2 class="card-title">Evolución por aspecto</h2>
+          <div class="evo">
+            <div class="chart" id="evo-chart"></div>
+            <div class="legend" id="evo-legend" aria-label="Mostrar u ocultar aspectos"></div>
+          </div>
+          <details class="table-view">
+            <summary>Ver como tabla</summary>
+            <div class="table-scroll" id="evo-table"></div>
+          </details>
+        </div>
+        <div class="card critical" id="critical"></div>
+      </section>
+
+      <section class="section" id="aspectos">
+        <div class="section-head">
+          <h2>Análisis por aspecto</h2>
+          <div class="tabs" id="asp-tabs" role="group" aria-label="Aspecto"></div>
+        </div>
+        <div class="band" id="asp-band"></div>
+        <div class="row-detail">
+          <div class="card">
+            <h2 class="card-title" id="asp-evo-title">Evolución</h2>
+            <div class="chart" id="asp-evo"></div>
+          </div>
+          <div class="stack-cards">
+            <div class="card">
+              <h2 class="card-title">Conclusiones del aspecto</h2>
+              <ul class="bullets light" id="asp-concl"></ul>
+            </div>
+            <div class="card">
+              <h2 class="card-title">Acciones sugeridas</h2>
+              <p class="muted small">Según las palabras que más se repiten en las quejas.</p>
+              <ul class="bullets light" id="asp-actions"></ul>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Qué impulsa este resultado</h2>
+          <div id="asp-drivers"></div>
+        </div>
+        <div class="card related-card">
+          <div class="related-head">
+            <h2 class="card-title" id="asp-related-title">Reseñas relacionadas</h2>
+            <a class="link" id="asp-related-all" href="resenas.html">Ver todas <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          </div>
+          <div class="related-list" id="asp-related"></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card empty-state" id="empty" hidden>
+      <h2>No hay reseñas para estos filtros</h2>
+      <p class="muted">Ampliá el período o quitá algún filtro.</p>
+    </section>
+  </main>
+
+  <script type="module" src="js/resumen.js"></script>
+</body>
+</html>

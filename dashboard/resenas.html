@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reseñas · RestoAnalytics</title>
+  <meta name="description" content="Explorador de reseñas con el análisis de cada aspecto.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='4' fill='%231F1E1C'/><path d='M4.5 12V9M8 12V5M11.5 12V7.5' stroke='%23C7894B' stroke-width='1.8' stroke-linecap='round'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <header class="page-head">
+      <div>
+        <h1>Explorador de reseñas</h1>
+      </div>
+      <div class="sync" id="sync" role="status"></div>
+    </header>
+
+    <section class="filters" id="filters" aria-label="Filtros"></section>
+    <section class="kpis three" id="kpis" aria-label="Indicadores"></section>
+    <div class="pills" id="chips" role="group" aria-label="Atajos"></div>
+
+    <section class="explorer">
+      <div class="card list-card">
+        <div class="list-tools">
+          <label class="search">
+            <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <input type="search" id="q" placeholder="Buscar en las reseñas…" aria-label="Buscar en las reseñas">
+          </label>
+          <div class="tool-row">
+            <select id="ex-dim" aria-label="Aspecto"><option value="all">Todos los aspectos</option></select>
+            <select id="ex-sent" aria-label="Valoración">
+              <option value="all">Cualquier valoración</option>
+              <option value="neg">Negativa (1–2)</option>
+              <option value="mid">Mixta (3)</option>
+              <option value="pos">Positiva (4–5)</option>
+            </select>
+            <select id="ex-sort" aria-label="Orden">
+              <option value="recent">Más recientes</option>
+              <option value="worst">Peor puntaje primero</option>
+              <option value="best">Mejor puntaje primero</option>
+              <option value="old">Más antiguas</option>
+            </select>
+          </div>
+          <p class="muted small" id="count"></p>
+        </div>
+        <div class="list" id="list"></div>
+        <button class="btn more" id="more" type="button" hidden>Mostrar más</button>
+      </div>
+      <article class="card detail" id="detail" aria-live="polite"></article>
+    </section>
+  </main>
+
+  <script type="module" src="js/resenas.js"></script>
+</body>
+</html>

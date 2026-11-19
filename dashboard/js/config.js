@@ -1,0 +1,16 @@
+// Configuración del dashboard. Es lo único que hay que tocar para conectarlo.
+export const CONFIG = {
+  appName: 'RestoAnalytics',
+  restaurant: 'Dolci B&E',
+
+  // URL base de la API (sin barra final), por ejemplo 'http://127.0.0.1:8000'.
+  // Usa GET /reviews/ y POST /reviews/analyze.
+  // Vacío = modo demostración: lee data/reviews.json y guarda todo en este navegador.
+  apiBase: '',
+
+  // Cada cuántos segundos se piden reseñas nuevas a la API.
+  refreshSeconds: 15,
+
+  sampleData: 'data/reviews.json',
+  publicForm: 'opinar.html',
+};

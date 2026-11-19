@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dejá tu reseña</title>
+  <meta name="description" content="Contanos cómo fue tu visita.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z' fill='%23C7894B'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body class="public">
+  <aside class="pub-aside">
+    <div class="pub-aside-text">
+      <span class="eyebrow" data-t="eyebrow"></span>
+      <p class="pub-name" id="rest-name"></p>
+      <i class="rule" aria-hidden="true"></i>
+    </div>
+    <div class="pub-hero" id="hero-img" aria-hidden="true"></div>
+  </aside>
+
+  <main class="pub-main">
+    <div class="lang" role="group" aria-label="Idioma">
+      <button type="button" data-lang="es">ES</button>
+      <button type="button" data-lang="pt">PT</button>
+      <button type="button" data-lang="en">EN</button>
+    </div>
+
+    <form class="pub-card" id="form" novalidate>
+      <h1 data-t="title"></h1>
+      <p class="lead" data-t="lead"></p>
+
+      <fieldset class="field">
+        <legend><span data-t="rating"></span> <span class="opt">(<span data-t="optional"></span>)</span></legend>
+        <div class="rating-row">
+          <div class="star-input" id="stars" role="radiogroup"></div>
+          <span class="rating-label" id="rating-label"></span>
+          <button type="button" class="clear" id="rating-clear" data-t="clear" hidden></button>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label for="text" data-t="review"></label>
+        <textarea id="text" name="text" rows="7" required></textarea>
+        <div class="under">
+          <p class="topics" id="topics"></p>
+          <span class="counter" id="count"></span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="name"><span data-t="name"></span> <span class="opt">(<span data-t="optional"></span>)</span></label>
+        <input id="name" name="name" type="text" maxlength="60" autocomplete="given-name">
+      </div>
+
+      <!-- trampa para bots: las personas no la ven -->
+      <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true">
+
+      <p class="error" id="err" role="alert" hidden></p>
+      <button class="btn primary big" id="send" type="submit"></button>
+      <p class="privacy" data-t="privacy"></p>
+    </form>
+
+    <section class="pub-card thanks" id="thanks" tabindex="-1" hidden>
+      <span class="thanks-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+      <h1 data-t="thanks"></h1>
+      <p class="lead" data-t="thanksLead"></p>
+      <button class="btn" id="again" type="button" data-t="again"></button>
+    </section>
+
+
+    <p class="powered"><span data-t="by"></span> <b id="brand"></b></p>
+  </main>
+
+  <script type="module" src="js/opinar.js"></script>
+</body>
+</html>
