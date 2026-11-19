@@ -103,7 +103,7 @@ function listRows() {
 }
 
 function scoreChips(r, focus = -1) {
-  if (r.failed) return h('div', { class: 'chips' }, h('span', { class: 'chip error', title: r.error || null }, icon('alert', 14), 'No se pudo analizar'));
+  if (r.failed) return h('div', { class: 'chips' }, h('span', { class: 'chip error' }, icon('alert', 14), 'No se pudo analizar'));
   if (r.pending) return h('div', { class: 'chips' }, h('span', { class: 'chip wait' }, icon('clock', 14), 'En análisis'));
   const chips = r.s.map((v, i) => (v ? h('span', { class: `chip ${v <= 2 ? 'neg' : v >= 4 ? 'pos' : ''}${i === focus ? ' focus' : ''}` }, DIMS[i].label, h('b', { text: f1(v) })) : null));
   if (!r.s.some(Boolean)) chips.push(h('span', { class: 'muted small', text: 'No menciona ningún aspecto' }));
@@ -198,7 +198,7 @@ async function act(r, patch, msg) {
     await saveAction(r.id, patch);
     Object.assign(r, patch);
     toast(msg);
-  } catch (err) { toast(`No se pudo guardar: ${err.message}`); }
+  } catch (err) { console.error(err); toast('No se pudo guardar. Probá de nuevo.'); }
 }
 
 // ---------- Controles ----------

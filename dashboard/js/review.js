@@ -84,12 +84,11 @@ export function reviewAnalysis(r, q = '') {
   if (r.failed) {
     return [
       h('div', { class: 'notice error' }, icon('alert', 18),
-        h('span', { text: 'No se pudo analizar esta reseña. El texto quedó guardado, pero todavía no tiene puntajes ni explicación.' })),
-      r.error ? h('p', { class: 'muted small error-detail', text: `Motivo: ${r.error}` }) : null,
+        h('span', { text: 'No pudimos analizar esta reseña. Quedó guardada y podés leerla igual.' })),
     ];
   }
   if (r.pending) {
-    return [h('div', { class: 'notice' }, icon('clock', 18), h('span', { text: 'Esta reseña llegó desde el formulario y todavía no pasó por el modelo. Cuando la API la procese, acá vas a ver el puntaje y la explicación de cada aspecto.' }))];
+    return [h('div', { class: 'notice' }, icon('clock', 18), h('span', { text: 'Analizando la reseña…' }))];
   }
   const hasQuotes = Boolean(r.qt && r.qt.some(Boolean));
   return [
@@ -100,7 +99,7 @@ export function reviewAnalysis(r, q = '') {
       h('tbody', null, DIMS.map((d, i) => {
         const v = r.s[i];
         const name = h('td', { class: 'a-name' }, icon(DIM_ICON[i], 18), d.label);
-        if (!v) return h('tr', { class: 'na' }, name, h('td', { colspan: 3, text: 'No lo menciona (N/A)' }));
+        if (!v) return h('tr', { class: 'na' }, name, h('td', { colspan: 3, text: 'No lo menciona' }));
         // La cita que eligió el modelo; si no hay, la frase que menciona el aspecto (por palabras clave).
         const frag = (r.qt && r.qt[i]) || fragment(r.text, i);
         return h('tr', null, name,

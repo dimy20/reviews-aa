@@ -79,7 +79,7 @@ function mountSync() {
     let state, a, b;
     if (status.mode === 'api') {
       state = status.ok ? 'ok' : 'error';
-      a = status.ok ? 'Sincronización API activa' : 'Sin conexión con la API';
+      a = status.ok ? 'Reseñas al día' : 'Sin conexión';
       b = status.ok ? ago() : 'Reintentando…';
     } else if (status.mode === 'import') {
       state = 'idle'; a = 'Datos importados'; b = status.name;
@@ -89,7 +89,8 @@ function mountSync() {
     $('#sync').dataset.state = state;
     main.textContent = a;
     sub.textContent = b;
-    $('#sync').title = status.error || '';
+    // el detalle técnico queda en la consola, no en pantalla
+    $('#sync').title = status.error ? 'No pudimos traer las reseñas nuevas. Lo seguimos intentando.' : '';
   };
   setInterval(update, 30000);
   return { update };
@@ -160,7 +161,7 @@ export async function boot(page, onData) {
     } catch (err) {
       console.error(err);
       status.ok = false; status.error = err.message;
-      toast(location.protocol === 'file:' ? 'Abrí el dashboard con Live Server para cargar los datos.' : err.message);
+      toast('No pudimos cargar las reseñas. Probá recargar la página en unos minutos.');
     }
     bar.update(data);
     sync.update();
