@@ -45,8 +45,7 @@ engine/              las piezas de cada paso del pipeline, compartidas por la AP
   pipeline.py        traducción, KevRatings, puntuar y explicar (las dos últimas sin implementar)
   aspects.py         carga engine/instructions/ y arma ejemplos en formato kev
   instructions/      un .txt por dimensión: la pregunta que se le hace a kev
-  infra.py           levanta el pod de kev en RunPod y lo registra en la tabla pods
-migrations/          create_pods_table.py: crea la tabla pods en api/reviews.db
+  infra.py           levanta el pod de kev en RunPod (o reusa el que ya está corriendo)
 settings.py          toda la configuración: get_settings()
 infra.yaml           imagen, volumen, datacenter, puerto y GPUs del pod de kev
 dashboard/           HTML/CSS/JS sin build (ver dashboard/README.md)
@@ -107,9 +106,6 @@ docker compose -f compose.app.yaml down         # down -v borra también la base
 # Datos para fine-tunear kev: reseñas/splits_en/<split>_en.csv -> reseñas/splits_en/kev/<split>.jsonl
 uv run python -m tools.data train               # train | val | test, opcional --save-path DIR
 
-# Tabla pods en una base nueva
-uv run python -m migrations.create_pods_table
-
 # Herramienta de etiquetado
 uv run tools/labeling/app.py serve              # http://127.0.0.1:8765
 
@@ -119,21 +115,36 @@ uv run tools/labeling/app.py serve              # http://127.0.0.1:8765
 
 ### Pod de kev en RunPod
 
-`engine/infra.py: provision_gpu()` lee `infra.yaml` y:
+La API levanta el pod a demanda y lo borra cuando nadie lo usa. Todo está en `engine/infra.py`.
 
-1. Busca en la tabla `pods` el último pod activo con ese nombre y le pregunta a RunPod si sigue `RUNNING`. Si sí, lo devuelve sin crear otro; si no, lo marca `is_active = 0`.
-2. Si no hay ninguno, prueba las GPUs de `devices` en orden (cada `wait_interval` s, hasta `max_attempts` intentos), crea el pod y lo guarda en `pods` con `base_url` y `health_url` (`<base_url>/ping`).
+**Levantar: `provision_pod()`**, dependencia (`Depends`) de `POST /reviews/analyze`, así que corre en cada request. Lee `infra.yaml` y:
+
+1. Le pide a RunPod los pods de la cuenta (`runpod.get_pods()`) y busca uno llamado `kev` en `RUNNING`. Si lo hay, lo devuelve sin crear otro. No hay estado local: RunPod es la fuente de verdad, y el nombre `kev` es lo que identifica al pod.
+2. Si no hay ninguno, prueba las GPUs de `devices` en orden (cada `wait_interval` s, hasta `max_attempts` intentos) y crea el pod. Mientras tanto el request queda esperando (hasta ~10 min si no hay GPU libre).
+
+Devuelve `{id, base_url, health_url}`; las URLs se arman con el id y el `port` de `infra.yaml` (`health_url` = `<base_url>/ping`).
+
+**Borrar por inactividad: `watch_pod_activity()`**, tarea de fondo que arranca y se cancela en el `lifespan` de `api/main.py`.
+
+- `EXPIRES_AT` (en memoria) es cuándo se borra el pod. Cada `provision_pod()` lo corre a ahora + `MAX_POD_INACTIVITY` (3 min); si el pod es nuevo, suma 2 min más porque tarda en cargar kev.
+- Cada 60 s se fija si pasó `EXPIRES_AT`. Si pasó, busca el pod `kev` que esté corriendo y lo **termina** (`runpod.terminate_pod`): deja de cobrar del todo, y los pesos siguen en el network volume. El próximo request crea uno nuevo y espera a que arranque.
+- Al arrancar o reiniciar la API, `EXPIRES_AT` arranca en ahora + 3 min: el pod que ya estuviera corriendo tiene ese margen, y si no llega ningún request, se borra. Así un reinicio nunca deja una GPU cobrando, y los reinicios del modo watch solo corren el plazo (nunca borran el pod antes de tiempo).
+- Borra **cualquier** pod `kev` ocioso mientras la API corre, también uno levantado con `deploy_models.py up`. Para tener un pod que no se borre solo, frenar la API o usar otro nombre.
+- Las llamadas a RunPod bloquean, así que el watcher las corre con `asyncio.to_thread`. Si fallan, lo avisa en el log y reintenta en la próxima vuelta.
+- El plazo se corre al empezar cada request (cuando corre la dependencia), no al terminar.
+
+- No usar el nombre `kev` para otros pods de la cuenta: se confundirían con este. Si hay varios `kev` corriendo, usa el primero y lo avisa en el log. Los pods frenados no se reusan (se avisa en el log, porque siguen cobrando el disco).
 
 - Siempre **secure cloud** (`cloud_type="SECURE"`), nunca community.
 - Crear un pod **empieza a cobrar**. El pod tarda unos minutos en cargar kev; hasta entonces la URL devuelve 502.
 - Los pesos de kev quedan en el network volume de `infra.yaml`, que está en un datacenter fijo: el pod tiene que estar en el mismo.
-- `deploy_models.py down` solo conoce el pod de `models/config.json`; los pods creados con `infra.py` se borran desde la consola de RunPod.
+- `deploy_models.py` también llama `kev` a su pod, así que `infra.py` lo encuentra y lo reusa. Pero `deploy_models.py down` solo conoce el pod de `models/config.json`: los pods creados con `infra.py` se borran desde la consola de RunPod.
 
 ## Bases de datos
 
 | Archivo | Quién la usa | Tablas |
 |---|---|---|
-| `api/reviews.db` (en Docker: volumen `api-data`, `/data/reviews.db`) | API e `infra.py` | `reviews` (de `api/db.py: init_db`, que corre en el lifespan), `pods` (de `migrations/create_pods_table.py`) |
+| `api/reviews.db` (en Docker: volumen `api-data`, `/data/reviews.db`) | API | `reviews` (de `api/db.py: init_db`, que corre en el lifespan) |
 | `reseñas/labels.db` | etiquetas humanas de referencia, `dashboard/scripts/build_data.py` | `reviews`, `labels`, `label_history`, `skips`, `claims`, `suggestions` |
 | `tools/labeling/labels.db` | la herramienta de etiquetado en local | mismo esquema |
 

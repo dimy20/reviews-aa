@@ -1,6 +1,7 @@
 # Reviews API + dashboard. Separate from compose.yaml (the labeling tool).
 #
 #   docker compose -f compose.app.yaml up -d --build
+#   docker compose -f compose.app.yaml up --build --watch   # dev: code changes reach the running containers
 #
 #   dashboard: http://localhost:8080
 #   api:       http://localhost:8000/docs
@@ -19,9 +20,32 @@ services:
     environment:
       REVIEWS_DB_PATH: /data/reviews.db
     volumes:
-      - api-data:/data                # reviews.db (reviews + pods), survives rebuilds
+      - api-data:/data                # reviews.db, survives rebuilds
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
+    develop:
+      watch:
+        # Python code: copy into the container and restart uvicorn (a few seconds).
+        - path: ./api
+          target: /app/api
+          action: sync+restart
+          ignore: [reviews.db, Dockerfile]
+        - path: ./engine
+          target: /app/engine
+          action: sync+restart
+        - path: ./settings.py
+          target: /app/settings.py
+          action: sync+restart
+        - path: ./infra.yaml
+          target: /app/infra.yaml
+          action: sync+restart
+        # Dependencies or the image itself changed: rebuild.
+        - path: ./pyproject.toml
+          action: rebuild
+        - path: ./uv.lock
+          action: rebuild
+        - path: ./api/Dockerfile
+          action: rebuild
 
   dashboard:
     build: ./dashboard
@@ -35,6 +59,19 @@ services:
       API_BASE: ${API_BASE:-http://localhost:${API_PORT:-8000}}
     ports:
       - "127.0.0.1:${DASHBOARD_PORT:-8080}:80"
+    develop:
+      watch:
+        # Static files: nginx serves them as soon as they're copied, just refresh the browser.
+        - path: ./dashboard
+          target: /usr/share/nginx/html
+          action: sync
+          # js/env.js is generated in the container from API_BASE: syncing the local
+          # (empty) one would switch the dashboard to demo mode.
+          ignore: [js/env.js, Dockerfile, docker/, scripts/, README.md]
+        - path: ./dashboard/Dockerfile
+          action: rebuild
+        - path: ./dashboard/docker
+          action: rebuild
 
 volumes:
   api-data:

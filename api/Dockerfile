@@ -19,7 +19,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY settings.py infra.yaml ./
 COPY api/ api/
 COPY engine/ engine/
-COPY migrations/ migrations/
 
 # The SQLite database lives in /data, mounted as a volume so it survives rebuilds.
 ENV REVIEWS_DB_PATH=/data/reviews.db
@@ -29,6 +28,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/reviews', timeout=4)"
 
-# The migration creates the pods table on a fresh volume (IF NOT EXISTS, so re-running is safe);
-# the reviews table is created by the app's lifespan.
-CMD ["sh", "-c", "python -m migrations.create_pods_table && exec uvicorn api.main:app --host 0.0.0.0 --port 8000"]
+# The reviews table is created by the app's lifespan (init_db).
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]

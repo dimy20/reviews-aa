@@ -1,51 +1,56 @@
 import runpod
 import time
 import logging
-from api.db import get_connection
 from settings import InfraSettings, get_settings
+from typing import TypedDict
+import asyncio
+
+class PodResource(TypedDict):
+    id: str
+    base_url: str
+    health_url: str
+
+class CreatePodResult(TypedDict):
+    resource: PodResource
+    new: bool
+
+EXPIRES_AT = 0
+MAX_POD_INACTIVITY = 60 * 3 # 3 minutos
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("infra")
 
-def get_active_pod(name: str = "kev") -> dict | None:
-    """Return the most recent active pod saved under `name` if RunPod says it's still running."""
-    conn = get_connection()
-    row = conn.execute(
-        """--sql
-        SELECT id, base_url, health_url FROM pods
-        WHERE name = ? AND is_active = 1
-        ORDER BY rowid DESC LIMIT 1
-        """,
-        (name,),
-    ).fetchone()
+def _pod_urls(pod_id: str, port: int) -> PodResource:
+    base_url = f"https://{pod_id}-{port}.proxy.runpod.net"
+    health_url = f"{base_url}/ping"  # served by deploy/kev/serve_runpod.py
+    return {"id": pod_id, "base_url": base_url, "health_url": health_url}
 
-    if row is None:
-        conn.close()
+def get_active_pod(port: int, name: str = "kev") -> PodResource | None:
+    """Ask RunPod for a running pod called `name`. RunPod is the source of truth: no local state."""
+    pods = [p for p in runpod.get_pods() if p["name"] == name]
+    running = [p for p in pods if p["desiredStatus"] == "RUNNING"]
+
+    stopped = len(pods) - len(running)
+    if stopped:
+        # A stopped pod still bills its disk; it isn't reused, so it's worth knowing about.
+        log.info("hay %d pod(s) '%s' frenados (no se reusan)", stopped, name)
+
+    if not running:
         return None
 
-    try:
-        pod = runpod.get_pod(row["id"])
-    except runpod.error.QueryError:
-        pod = None  # RunPod errors out on ids it no longer knows
+    if len(running) > 1:
+        # Names aren't unique on RunPod: two provisions at once, or one created by hand.
+        log.warning("hay %d pods '%s' corriendo: %s. Uso el primero",
+                    len(running), name, ", ".join(p["id"] for p in running))
 
-    status = pod.get("desiredStatus") if pod else None
+    return _pod_urls(running[0]["id"], port)
 
-    if status != "RUNNING":
-        log.info("pod %s ya no esta activo (%s), lo marco inactivo", row["id"], status or "terminado")
-        with conn:  # commits the update
-            conn.execute("UPDATE pods SET is_active = 0 WHERE id = ?", (row["id"],))
-        conn.close()
-        return None
-
-    conn.close()
-    return dict(row)
-
-def create_kev_pod(infra: InfraSettings, name: str = "kev") -> dict:
-    active = get_active_pod(name)
+def create_kev_pod(infra: InfraSettings, name: str = "kev") -> CreatePodResult:
+    active = get_active_pod(infra.port, name)
     if active is not None:
         log.info("ya hay un pod activo: %s", active["id"])
-        return active
+        return CreatePodResult(resource=active, new=False)
 
     settings = get_settings()
     api_key = settings.kev_api_key
@@ -54,7 +59,7 @@ def create_kev_pod(infra: InfraSettings, name: str = "kev") -> dict:
     if not api_key:
         raise SystemExit("Falta KEV_API_KEY")
 
-    if not api_key:
+    if not hf_token:
         raise SystemExit("Falta HF_TOKEN")
 
     max_attempts = infra.max_attempts
@@ -97,21 +102,10 @@ def create_kev_pod(infra: InfraSettings, name: str = "kev") -> dict:
     if pod is None:
         raise SystemExit(f"No hubo ninguna GPU libre en {data_center} despues de {max_attempts} intentos, proba en un rato.")
 
-    pod_id = pod["id"]
-    base_url = f"https://{pod_id}-{port}.proxy.runpod.net"
-    health_url = f"{base_url}/ping"  # served by deploy/kev/serve_runpod.py
-
-    conn = get_connection()
-    with conn:  # commits the insert
-        conn.execute(
-            """--sql
-            INSERT INTO pods (id, type, name, base_url, health_url)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (pod_id, "pod", name, base_url, health_url),
-        )
-    conn.close()
-    return {"id": pod_id, "base_url": base_url, "health_url": health_url}
+    return CreatePodResult(
+        resource=_pod_urls(pod["id"], port),
+        new=True
+    )
 
 def _create_pod(name: str,
                 image_name: str,
@@ -140,6 +134,33 @@ def _create_pod(name: str,
         docker_args="bash -c 'exec .venv/bin/python serve_runpod.py --run $KEV_RUN --host 0.0.0.0 --port $KEV_PORT'",
     )
 
-def provision_gpu():
+async def watch_pod_activity():
+    global EXPIRES_AT
+    # al arrancar (o reiniciar) la API, el pod que este corriendo tiene MAX_POD_INACTIVITY de gracia:
+    # si nadie lo usa en ese tiempo se borra, asi un reinicio nunca deja una GPU cobrando
+    EXPIRES_AT = time.time() + MAX_POD_INACTIVITY
+    while True:
+        now = time.time()
+        if EXPIRES_AT and now >= EXPIRES_AT:
+            try:
+                pod = await asyncio.to_thread(get_active_pod, get_settings().infra.port)
+                if pod is not None:
+                    log.info("pod %s inactive for %ds, deleting...", pod["id"], MAX_POD_INACTIVITY)
+                    await asyncio.to_thread(runpod.terminate_pod, pod["id"])
+                EXPIRES_AT = 0
+            except Exception as e:
+                log.warning("Failed to delete pod, retying in 60s: %s", e)
+        await asyncio.sleep(60)
+
+def provision_pod() -> PodResource:
+    global EXPIRES_AT
     settings = get_settings()
-    print(create_kev_pod(settings.infra))
+    res = create_kev_pod(settings.infra)
+
+    now = time.time()
+    EXPIRES_AT = now + MAX_POD_INACTIVITY
+
+    if res.get("new"):
+        EXPIRES_AT += 120 # un par de minutos, pq el pod demora un poco en inicializar
+
+    return res.get("resource")

@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS reviews (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
-# The pods table is created by migrations/create_pods_table.py.
 
 
 def get_connection() -> sqlite3.Connection:
