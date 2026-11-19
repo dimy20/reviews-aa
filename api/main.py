@@ -2,13 +2,14 @@ from contextlib import asynccontextmanager
 import asyncio
 import runpod
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from api.db import get_connection, init_db
 from settings import get_settings
-from engine.infra import provision_pod, PodResource, watch_pod_activity
+from engine.infra import provision_pod, PodResource, watch_pod_activity, PodError
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,6 +24,11 @@ app = FastAPI(title="Reviews API", lifespan=lifespan)
 # The dashboard is served from another origin (port), and there's no login yet,
 # so allow any origin (see dashboard/README.md).
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# sin pod (falta una clave o no hay GPU libre): 503 en vez de un 500
+@app.exception_handler(PodError)
+def pod_error_handler(request: Request, exc: PodError):
+    return JSONResponse(status_code=503, content={"detail": str(exc)})
 
 class AnalyzeRequest(BaseModel):
     text: str

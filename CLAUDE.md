@@ -59,7 +59,7 @@ tools/
 deploy/
   kev/               imagen Docker de kev (enzost4/kev:1.0) + serve_runpod.py (/ping)
   Caddyfile, *.env   producción de la herramienta de etiquetado (HTTPS + contraseña)
-deploy_models.py     forma vieja de levantar/bajar el pod (up/down), escribe models/config.json
+deploy_models.py     CLI para levantar/bajar el pod a mano (up/down), sobre engine/infra.py
 reseñas/             datos: CSVs por idioma, labels.db, splits/ y splits_en/ (+ splits_en/kev/*.jsonl)
 data/                CSVs originales en español y portugués
 notebooks/           experimentos numerados (dataset, detección de idioma, traductores, modelos desplegados)
@@ -83,7 +83,7 @@ s.infra.devices          # lo de infra.yaml, validado
 
 - Los secretos van en `.env` en la raíz (nunca se versiona ni entra en las imágenes): `RUNPOD_API_KEY`, `KEV_API_KEY`, `OPENROUTER_API_KEY`, `HF_TOKEN`. Una variable exportada en la shell le gana a `.env`.
 - `KEV_API_KEY` es la clave que pide el servidor de kev (`Authorization: Bearer ...`); el pod la recibe con ese mismo nombre.
-- El SDK de RunPod no lee `RUNPOD_API_KEY` solo (usa `~/.runpod/config.toml`): hay que asignar `runpod.api_key = get_settings().runpod_api_key`, como hacen `api/main.py` y `engine/infra.py`.
+- El SDK de RunPod no lee `RUNPOD_API_KEY` solo (usa `~/.runpod/config.toml`): hay que asignar `runpod.api_key = get_settings().runpod_api_key`, como hace el `lifespan` de `api/main.py`.
 - `tools/labeling/` todavía lee `os.environ` directo: es una imagen aparte y no usa `settings.py`.
 - Código nuevo: leer configuración con `get_settings()`, no con `os.environ` ni `load_dotenv`.
 
@@ -115,30 +115,38 @@ uv run tools/labeling/app.py serve              # http://127.0.0.1:8765
 
 ### Pod de kev en RunPod
 
-La API levanta el pod a demanda y lo borra cuando nadie lo usa. Todo está en `engine/infra.py`.
+La API levanta el pod a demanda y lo borra cuando nadie lo usa. Todo está en `engine/infra.py`, que es la única fuente de cómo se levanta, se encuentra y se borra el pod: la API, `deploy_models.py` y los notebooks lo usan.
 
 **Levantar: `provision_pod()`**, dependencia (`Depends`) de `POST /reviews/analyze`, así que corre en cada request. Lee `infra.yaml` y:
 
 1. Le pide a RunPod los pods de la cuenta (`runpod.get_pods()`) y busca uno llamado `kev` en `RUNNING`. Si lo hay, lo devuelve sin crear otro. No hay estado local: RunPod es la fuente de verdad, y el nombre `kev` es lo que identifica al pod.
 2. Si no hay ninguno, prueba las GPUs de `devices` en orden (cada `wait_interval` s, hasta `max_attempts` intentos) y crea el pod. Mientras tanto el request queda esperando (hasta ~10 min si no hay GPU libre).
 
-Devuelve `{id, base_url, health_url}`; las URLs se arman con el id y el `port` de `infra.yaml` (`health_url` = `<base_url>/ping`).
+Devuelve `{id, base_url, health_url}`; las URLs se arman con el id y el `port` de `infra.yaml` (`health_url` = `<base_url>/ping`). Devuelve el pod apenas RunPod lo crea, sin esperar a que kev cargue: quien llame a kev tiene que tolerar los 502 del arranque.
+
+- Si falta `KEV_API_KEY` o `HF_TOKEN`, o no hubo GPU libre, lanza `PodError`; `api/main.py` lo convierte en un **503** con el motivo. No usar `SystemExit` en `engine/`: corre dentro de requests.
+- `POD_LOCK` hace que buscar-o-crear (y el borrado del watcher) sea de a uno. Dos requests sin pod crean **un** pod: el segundo espera al primero y lo reusa.
 
 **Borrar por inactividad: `watch_pod_activity()`**, tarea de fondo que arranca y se cancela en el `lifespan` de `api/main.py`.
 
-- `EXPIRES_AT` (en memoria) es cuándo se borra el pod. Cada `provision_pod()` lo corre a ahora + `MAX_POD_INACTIVITY` (3 min); si el pod es nuevo, suma 2 min más porque tarda en cargar kev.
-- Cada 60 s se fija si pasó `EXPIRES_AT`. Si pasó, busca el pod `kev` que esté corriendo y lo **termina** (`runpod.terminate_pod`): deja de cobrar del todo, y los pesos siguen en el network volume. El próximo request crea uno nuevo y espera a que arranque.
-- Al arrancar o reiniciar la API, `EXPIRES_AT` arranca en ahora + 3 min: el pod que ya estuviera corriendo tiene ese margen, y si no llega ningún request, se borra. Así un reinicio nunca deja una GPU cobrando, y los reinicios del modo watch solo corren el plazo (nunca borran el pod antes de tiempo).
+- `EXPIRES_AT` (en memoria) es cuándo se borra el pod, y `KNOWN_POD_ID` es el pod al que corresponde ese plazo.
+- Cada `provision_pod()` corre el plazo a ahora + `MAX_POD_INACTIVITY` (3 min); si el pod es nuevo, suma `BOOT_GRACE` (2 min) porque tarda en cargar kev. El plazo se corre al empezar cada request (cuando corre la dependencia), no al terminar.
+- Cada 60 s (`_check_pod`, con `POD_LOCK` tomado) le pregunta a RunPod por el pod `kev` corriendo:
+  - **No hay pod:** no hace nada.
+  - **Pod con un id que la API no conocía** (lo levantó `deploy_models.py up`, o la API recién arranca o se reinició): le da una ventana completa de 3 + 2 min desde que lo ve, sin borrarlo. Así un pod del script no hereda un plazo viejo y se borra recién levantado, ni vive para siempre porque la API no lo tenía en cuenta. Y un reinicio nunca deja una GPU cobrando: el pod que ya estuviera corriendo se borra si no llega ningún request en esa ventana. Los reinicios del modo watch solo vuelven a dar la ventana.
+  - **El mismo pod y pasó `EXPIRES_AT`:** lo **termina** (`runpod.terminate_pod`). Deja de cobrar del todo, y los pesos siguen en el network volume. El próximo request crea uno nuevo y espera a que arranque.
+- Como mira con el lock tomado, no puede borrar un pod que un request acaba de recibir: ese request ya corrió el plazo.
 - Borra **cualquier** pod `kev` ocioso mientras la API corre, también uno levantado con `deploy_models.py up`. Para tener un pod que no se borre solo, frenar la API o usar otro nombre.
 - Las llamadas a RunPod bloquean, así que el watcher las corre con `asyncio.to_thread`. Si fallan, lo avisa en el log y reintenta en la próxima vuelta.
-- El plazo se corre al empezar cada request (cuando corre la dependencia), no al terminar.
+- El estado (plazo, id, lock) es de cada proceso: `deploy_models.py` no lo comparte con la API. Lo que sí comparten es RunPod, así que los dos ven el mismo pod. Si el script y la API crean un pod en el mismo momento puede haber dos `kev`; se usa el primero y se avisa en el log.
 
 - No usar el nombre `kev` para otros pods de la cuenta: se confundirían con este. Si hay varios `kev` corriendo, usa el primero y lo avisa en el log. Los pods frenados no se reusan (se avisa en el log, porque siguen cobrando el disco).
 
 - Siempre **secure cloud** (`cloud_type="SECURE"`), nunca community.
 - Crear un pod **empieza a cobrar**. El pod tarda unos minutos en cargar kev; hasta entonces la URL devuelve 502.
 - Los pesos de kev quedan en el network volume de `infra.yaml`, que está en un datacenter fijo: el pod tiene que estar en el mismo.
-- `deploy_models.py` también llama `kev` a su pod, así que `infra.py` lo encuentra y lo reusa. Pero `deploy_models.py down` solo conoce el pod de `models/config.json`: los pods creados con `infra.py` se borran desde la consola de RunPod.
+- `deploy_models.py` es solo una CLI sobre `engine/infra.py`: `up` llama a `provision_pod()` y `down` a `terminate_kev_pods()`, que borra todos los pods `kev` (corriendo o frenados). Si la API está corriendo, su watcher ve el pod del script como nuevo, le da 5 min (3 + 2 de arranque) desde que lo ve, y lo borra si en ese tiempo no llega ningún request (cada request le da 3 min más).
+- Para la URL del pod desde cualquier lado (scripts, notebooks): `get_active_pod(get_settings().infra.port)`, después de asignar `runpod.api_key`. No hay archivo de configuración con la URL.
 
 ## Bases de datos
 

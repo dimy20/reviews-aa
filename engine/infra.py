@@ -4,6 +4,7 @@ import logging
 from settings import InfraSettings, get_settings
 from typing import TypedDict
 import asyncio
+import threading
 
 class PodResource(TypedDict):
     id: str
@@ -16,6 +17,16 @@ class CreatePodResult(TypedDict):
 
 EXPIRES_AT = 0
 MAX_POD_INACTIVITY = 60 * 3 # 3 minutos
+BOOT_GRACE = 120 # un par de minutos, pq el pod demora un poco en inicializar
+# el pod al que corresponde EXPIRES_AT. Un pod `kev` con otro id (deploy_models.py, un reinicio
+# de la API) es nuevo para esta API: recibe una ventana completa en vez de heredar un plazo viejo
+KNOWN_POD_ID = None
+
+# un solo find-or-create (o terminate) a la vez: sin esto, dos requests sin pod crean dos pods
+POD_LOCK = threading.Lock()
+
+class PodError(RuntimeError):
+    """No hay pod y no se pudo crear (falta una clave o no hay GPU libre). La API responde 503."""
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
@@ -57,10 +68,10 @@ def create_kev_pod(infra: InfraSettings, name: str = "kev") -> CreatePodResult:
     hf_token = settings.hf_token
 
     if not api_key:
-        raise SystemExit("Falta KEV_API_KEY")
+        raise PodError("Falta KEV_API_KEY")
 
     if not hf_token:
-        raise SystemExit("Falta HF_TOKEN")
+        raise PodError("Falta HF_TOKEN")
 
     max_attempts = infra.max_attempts
     devices = infra.devices  # list of gpus
@@ -100,7 +111,7 @@ def create_kev_pod(infra: InfraSettings, name: str = "kev") -> CreatePodResult:
             time.sleep(wait_interval)
 
     if pod is None:
-        raise SystemExit(f"No hubo ninguna GPU libre en {data_center} despues de {max_attempts} intentos, proba en un rato.")
+        raise PodError(f"No hubo ninguna GPU libre en {data_center} despues de {max_attempts} intentos, proba en un rato.")
 
     return CreatePodResult(
         resource=_pod_urls(pod["id"], port),
@@ -135,32 +146,62 @@ def _create_pod(name: str,
     )
 
 async def watch_pod_activity():
-    global EXPIRES_AT
-    # al arrancar (o reiniciar) la API, el pod que este corriendo tiene MAX_POD_INACTIVITY de gracia:
-    # si nadie lo usa en ese tiempo se borra, asi un reinicio nunca deja una GPU cobrando
-    EXPIRES_AT = time.time() + MAX_POD_INACTIVITY
     while True:
-        now = time.time()
-        if EXPIRES_AT and now >= EXPIRES_AT:
-            try:
-                pod = await asyncio.to_thread(get_active_pod, get_settings().infra.port)
-                if pod is not None:
-                    log.info("pod %s inactive for %ds, deleting...", pod["id"], MAX_POD_INACTIVITY)
-                    await asyncio.to_thread(runpod.terminate_pod, pod["id"])
-                EXPIRES_AT = 0
-            except Exception as e:
-                log.warning("Failed to delete pod, retying in 60s: %s", e)
+        try:
+            # cada vuelta le pregunta a RunPod: asi ve tambien los pods que no creo esta API
+            await asyncio.to_thread(_check_pod)
+        except Exception as e:
+            log.warning("Failed to check pod, retying in 60s: %s", e)
         await asyncio.sleep(60)
 
+def _check_pod():
+    global EXPIRES_AT, KNOWN_POD_ID
+    with POD_LOCK:
+        pod = get_active_pod(get_settings().infra.port)
+        now = time.time()
+
+        if pod is None:
+            KNOWN_POD_ID = None
+            EXPIRES_AT = 0
+            return
+
+        if pod["id"] != KNOWN_POD_ID:
+            # pod que esta API no conocia (deploy_models.py, o la API recien arranco): ventana completa.
+            # asi un reinicio nunca deja una GPU cobrando, y nunca se borra un pod recien levantado
+            KNOWN_POD_ID = pod["id"]
+            EXPIRES_AT = now + MAX_POD_INACTIVITY + BOOT_GRACE
+            log.info("pod %s nuevo para la API, se borra si no se usa en %ds", pod["id"], MAX_POD_INACTIVITY + BOOT_GRACE)
+            return
+
+        if now >= EXPIRES_AT:
+            log.info("pod %s inactive for %ds, deleting...", pod["id"], MAX_POD_INACTIVITY)
+            runpod.terminate_pod(pod["id"])
+            KNOWN_POD_ID = None
+            EXPIRES_AT = 0
+
+def terminate_kev_pods(name: str = "kev") -> list[str]:
+    """Borra todos los pods llamados `name`, corriendo o frenados. Devuelve los ids borrados."""
+    global EXPIRES_AT, KNOWN_POD_ID
+    with POD_LOCK:
+        ids = [p["id"] for p in runpod.get_pods() if p["name"] == name]
+        for pod_id in ids:
+            log.info("borrando pod %s", pod_id)
+            runpod.terminate_pod(pod_id)
+        KNOWN_POD_ID = None
+        EXPIRES_AT = 0
+    return ids
+
 def provision_pod() -> PodResource:
-    global EXPIRES_AT
+    global EXPIRES_AT, KNOWN_POD_ID
     settings = get_settings()
-    res = create_kev_pod(settings.infra)
+    with POD_LOCK:
+        res = create_kev_pod(settings.infra)
 
-    now = time.time()
-    EXPIRES_AT = now + MAX_POD_INACTIVITY
+        now = time.time()
+        KNOWN_POD_ID = res["resource"]["id"]
+        EXPIRES_AT = now + MAX_POD_INACTIVITY
 
-    if res.get("new"):
-        EXPIRES_AT += 120 # un par de minutos, pq el pod demora un poco en inicializar
+        if res.get("new"):
+            EXPIRES_AT += BOOT_GRACE
 
     return res.get("resource")

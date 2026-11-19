@@ -1,6 +1,8 @@
 from typing import Literal, TypedDict
 from openrouter import OpenRouter
 from settings import get_settings
+from engine.infra import get_active_pod
+import httpx
 
 
 MODEL = "tencent/hy-mt2-1.8b"
@@ -18,6 +20,19 @@ class KevRatings(TypedDict):
     experience: Rating
     wait_time: Rating
     service: Rating
+
+# el container de kev demora en inicializarse, esto sive para saber si esta 'healthy'
+def is_kev_healthy() -> bool:
+    settings = get_settings()
+    r = get_active_pod(settings.infra.port)
+
+    if not r:
+        return False
+
+    health_url = r.get("health_url")
+    response = httpx.get(health_url, timeout=10)
+
+    return response.status_code == 200
 
 # traduce el texto original a ingles de spanol o portugues
 def translate_to_english(text: str, src: Literal["es", "pt"]) -> str:
@@ -44,8 +59,11 @@ def translate_to_english(text: str, src: Literal["es", "pt"]) -> str:
     return res.choices[0].message.content.strip()
 
 # Recibe un review, genere ratings para cada aspecto
-def kev_assing_ratings(review: str) -> KevRatings:
-    pass
+def kev_assing_ratings(review: str) -> None | KevRatings:
+    if not is_kev_healthy():
+        return None
+
+    return KevRatings(food=4, price=2, experience="N/A", wait_time="N/A", service=3)
 
 # recibe ratings generados por kev, genera una explicacion a partir de la review y los ratings
 def explain_kev_ratings(review: str, ratings: KevRatings) -> str:
