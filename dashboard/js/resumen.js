@@ -1,9 +1,9 @@
 import { CONFIG } from './config.js';
 import { DIMS } from './data.js';
 import { boot } from './shell.js';
-import { $, h, icon, stars, f1, pct, nf0, plural, signed, DIM_ICON } from './ui.js';
+import { $, h, icon, f1, pct, nf0, signed, DIM_ICON } from './ui.js';
 import { compute, priorities, drivers, actionsFor } from './metrics.js';
-import { reviewMeta, reviewAnalysis } from './review.js';
+import { reviewMeta, reviewAnalysis, reviewText, pendingSummary } from './review.js';
 
 let ctx = null;
 // Reseña que se está viendo. Si estás en la primera, al llegar una nueva pasa a mostrar la nueva.
@@ -58,7 +58,7 @@ function show(k, focus) {
       h('div', { class: 'viewer-nav' },
         h('span', { class: 'viewer-pos', 'aria-live': 'polite', text: `${nf0.format(k + 1)} de ${nf0.format(n)}` }), prev, next)),
     reviewMeta(r),
-    h('blockquote', { class: `quote big${long && !V.full ? ' clamp' : ''}` }, '“', r.text, '”'),
+    reviewText(r, '', `quote big${long && !V.full ? ' clamp' : ''}`),
     long ? h('button', { class: 'more-text', type: 'button', onclick: () => { V.full = !V.full; show(k); } }, V.full ? 'Ver menos' : 'Leer completa') : null,
     ...reviewAnalysis(r),
     h('a', { class: 'link viewer-link', href: `resenas.html?id=${encodeURIComponent(r.id)}` }, 'Responder o marcar en Reseñas', icon('arrow', 16)),
@@ -82,8 +82,7 @@ function renderCount(st) {
   $('#kpi-count').replaceChildren(
     h('span', { class: 'kpi-label', text: 'Reseñas' }),
     h('span', { class: 'kpi-value', text: nf0.format(st.n + p) }),
-    st.avgR != null ? h('div', { class: 'kpi-rating' }, stars(st.avgR, 18), h('span', { text: `${f1(st.avgR)} de 5 en promedio` })) : null,
-    h('span', { class: 'kpi-sub', text: p ? `${plural(p, 'nueva', 'nuevas')} esperando el análisis` : `${pct(1 - st.none / Math.max(1, st.n))} mencionan algún aspecto` }));
+    h('span', { class: 'kpi-sub', text: p ? pendingSummary(ctx.pending) : `${pct(1 - st.none / Math.max(1, st.n))} mencionan algún aspecto` }));
 }
 
 // ---------- Lo principal a arreglar ----------
@@ -100,13 +99,14 @@ function renderFix(st) {
   }
   const d = DIMS[top.i];
   const act = actionsFor(top.i, drivers(ctx.cur, top.i, 'neg'))[0];
-  $('#fix-body').replaceChildren(
+  // filter(Boolean): replaceChildren escribe "null" si le llega un null (h() sí los ignora)
+  $('#fix-body').replaceChildren(...[
     ...head(d.label),
     h('p', null, h('b', { text: `El ${pct(top.negAll)} de las reseñas` }), ` se queja de ${d.art}.`),
-    top.impact != null ? h('p', { text: `Cuando falla, la calificación baja a ${f1(top.starsNeg)} ★; cuando está bien, es de ${f1(top.starsPos)} ★.` }) : null,
     act ? h('p', null, h('b', { text: 'Qué hacer: ' }), act) : null,
     rest.length ? h('p', { class: 'fix-next', text: `Le siguen: ${rest.slice(0, 2).map((x) => DIMS[x.i].label).join(' y ')}` }) : null,
-    h('a', { class: 'link light', href: `resenas.html?aspecto=${top.i}&sent=neg` }, 'Ver esas reseñas', icon('arrow', 16)));
+    h('a', { class: 'link light', href: `resenas.html?aspecto=${top.i}&sent=neg` }, 'Ver esas reseñas', icon('arrow', 16)),
+  ].filter(Boolean));
 }
 
 // ---------- Aspectos ----------

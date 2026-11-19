@@ -109,16 +109,13 @@ function mountFilters(f, onChange) {
   const rest = h('select', { 'aria-label': 'Local' });
   const period = h('select', { 'aria-label': 'Período' });
   const lang = h('select', { 'aria-label': 'Idioma' });
-  const starsSel = h('select', { 'aria-label': 'Estrellas' });
   const restStatic = h('div', { class: 'fbox static' }, icon('store', 18), h('span', { text: CONFIG.restaurant }));
   const restBox = fbox('store', null, rest);
   const langBox = fbox(null, 'Idioma:', lang);
-  const starsBox = fbox(null, 'Estrellas:', starsSel);
-  starsSel.append(...[['all', 'Todas'], ['high', '4–5 ★'], ['mid', '3 ★'], ['low', '1–2 ★']].map(([v, t]) => h('option', { value: v, text: t })));
 
-  $('#filters').replaceChildren(restStatic, restBox, fbox('calendar', null, period), langBox, starsBox);
+  $('#filters').replaceChildren(restStatic, restBox, fbox('calendar', null, period), langBox);
   const change = (k, el) => el.addEventListener('change', () => { f[k] = el.value; saveFilters(f); onChange(); });
-  change('rest', rest); change('period', period); change('lang', lang); change('stars', starsSel);
+  change('rest', rest); change('period', period); change('lang', lang);
 
   return {
     update(data) {
@@ -138,9 +135,8 @@ function mountFilters(f, onChange) {
       lang.replaceChildren(h('option', { value: 'all', text: 'Todos' }), ...langs.map((l) => h('option', { value: l, text: LANG[l] || l.toUpperCase() })));
       if (f.lang !== 'all' && !langs.includes(f.lang)) f.lang = 'all';
       langBox.hidden = langs.length < 2;
-      starsBox.hidden = !data.scored.some((r) => r.rating);
 
-      rest.value = f.rest; period.value = f.period; lang.value = f.lang; starsSel.value = f.stars;
+      rest.value = f.rest; period.value = f.period; lang.value = f.lang;
     },
   };
 }

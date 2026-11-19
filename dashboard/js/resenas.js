@@ -2,9 +2,9 @@ import { CONFIG } from './config.js';
 import { DIMS } from './data.js';
 import { boot } from './shell.js';
 import { saveAction } from './api.js';
-import { $, h, icon, stars, f1, pct, nf0, plural, dayLabel, stripAcc, highlight, toast } from './ui.js';
+import { $, h, icon, f1, pct, nf0, plural, dayLabel, stripAcc, highlight, toast } from './ui.js';
 import { compute, weakest } from './metrics.js';
-import { metaLine, reviewMeta, reviewAnalysis } from './review.js';
+import { metaLine, reviewMeta, reviewAnalysis, reviewText, pendingSummary } from './review.js';
 
 const params = new URLSearchParams(location.search);
 const S = {
@@ -37,7 +37,7 @@ function renderKpis(st) {
   const noReply = negs.filter((r) => !r.reply).length;
   $('#kpis').replaceChildren(
     h('div', { class: 'card kpi' }, h('span', { class: 'kpi-label', text: 'Reseñas' }), h('span', { class: 'kpi-value', text: nf0.format(st.n) }),
-      h('span', { class: 'kpi-sub', text: ctx.pending.length ? `+ ${plural(ctx.pending.length, 'nueva', 'nuevas')} en análisis` : `${pct(1 - st.none / Math.max(1, st.n))} mencionan algún aspecto` })),
+      h('span', { class: 'kpi-sub', text: ctx.pending.length ? `+ ${pendingSummary(ctx.pending)}` : `${pct(1 - st.none / Math.max(1, st.n))} mencionan algún aspecto` })),
     h('div', { class: 'card kpi' }, h('span', { class: 'kpi-label', text: 'Negativas' }), h('span', { class: 'kpi-value', text: nf0.format(negs.length) }),
       h('span', { class: 'kpi-sub', text: `${pct(negs.length / Math.max(1, st.n))} del total tiene algún aspecto en 1–2` })),
     h('button', { class: 'card kpi clickable', type: 'button', onclick: () => setPreset('noreply') },
@@ -48,7 +48,6 @@ function renderKpis(st) {
 function renderChips() {
   const follow = ctx.cur.filter((r) => r.follow).length + ctx.pending.filter((r) => r.follow).length;
   const chips = [
-    { id: 'hidden', label: 'Quejas en 4–5 ★' },
     weak ? { id: 'crit', label: `${DIMS[weak.i].label} crítico` } : null,
     { id: 'noreply', label: 'Sin respuesta' },
     { id: 'follow', label: `En seguimiento${follow ? ` (${follow})` : ''}` },
@@ -81,7 +80,6 @@ function listRows() {
   // Las reseñas recibidas desde el formulario (todavía sin analizar) se muestran siempre, primero.
   const base = preset === 'pending' ? ctx.pending : ctx.pending.concat(ctx.cur);
   const rows = base.filter((r) => {
-    if (preset === 'hidden' && !(r.rating >= 4 && isNeg(r))) return false;
     if (preset === 'noreply' && !(isNeg(r) && !r.reply)) return false;
     if (preset === 'follow' && !r.follow) return false;
     if (di >= 0) { if (!r.s[di] || !ok(r.s[di])) return false; }
@@ -105,6 +103,7 @@ function listRows() {
 }
 
 function scoreChips(r, focus = -1) {
+  if (r.failed) return h('div', { class: 'chips' }, h('span', { class: 'chip error', title: r.error || null }, icon('alert', 14), 'No se pudo analizar'));
   if (r.pending) return h('div', { class: 'chips' }, h('span', { class: 'chip wait' }, icon('clock', 14), 'En análisis'));
   const chips = r.s.map((v, i) => (v ? h('span', { class: `chip ${v <= 2 ? 'neg' : v >= 4 ? 'pos' : ''}${i === focus ? ' focus' : ''}` }, DIMS[i].label, h('b', { text: f1(v) })) : null));
   if (!r.s.some(Boolean)) chips.push(h('span', { class: 'muted small', text: 'No menciona ningún aspecto' }));
@@ -122,7 +121,7 @@ function renderList() {
     type: 'button', class: `item${r.id === S.sel ? ' selected' : ''}`, 'aria-current': r.id === S.sel ? 'true' : null,
     onclick: () => select(r.id),
   },
-    h('div', { class: 'meta' }, r.rating ? stars(r.rating, 15) : h('span', { class: 'no-rating', text: 'Sin estrellas' }), h('span', { text: metaLine(r) }),
+    h('div', { class: 'meta' }, h('span', { text: metaLine(r) }),
       h('span', { class: 'flags' }, r.reply ? h('span', { class: 'flag', title: 'Respondida' }, icon('reply', 14)) : null, r.follow ? h('span', { class: 'flag', title: 'En seguimiento' }, icon('flag', 14)) : null)),
     h('p', { class: 'quote clamp3' }, '“', highlight(r.text, S.q), '”'),
     scoreChips(r, di))) : [h('p', { class: 'list-empty muted', text: 'Ninguna reseña coincide con los filtros.' })]));
@@ -154,7 +153,7 @@ function renderDetail() {
     back,
     h('h2', { class: 'detail-title', text: 'Detalle de la reseña' }),
     reviewMeta(r),
-    h('blockquote', { class: 'quote big' }, '“', highlight(r.text, S.q), '”'),
+    reviewText(r, S.q), // con búsqueda resalta lo buscado; sin búsqueda, las citas del modelo
   ];
   if (r.orig) {
     const det = h('details', { class: 'orig' }, h('summary', { text: 'Ver versión original' }), h('p', { text: r.orig }));

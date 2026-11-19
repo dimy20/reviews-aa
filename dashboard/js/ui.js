@@ -81,23 +81,6 @@ export function icon(name, size = 20) {
   return s;
 }
 
-let starSeq = 0;
-export function stars(n, size = 16) {
-  const wrap = h('span', { class: 'stars', role: 'img', 'aria-label': `${f1(n)} de 5 estrellas` });
-  for (let i = 1; i <= 5; i++) {
-    const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    s.setAttribute('viewBox', '0 0 24 24');
-    s.setAttribute('width', size);
-    s.setAttribute('height', size);
-    s.setAttribute('aria-hidden', 'true');
-    const frac = Math.max(0, Math.min(1, n - i + 1));
-    const id = `st${++starSeq}`;
-    s.innerHTML = `<defs><linearGradient id="${id}"><stop offset="${frac}" stop-color="var(--star)"/><stop offset="${frac}" stop-color="var(--star-off)"/></linearGradient></defs>`
-      + `<path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z" fill="url(#${id})"/>`;
-    wrap.appendChild(s);
-  }
-  return wrap;
-}
 
 export function toast(msg) {
   let t = $('#toast');

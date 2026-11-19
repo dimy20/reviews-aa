@@ -1,4 +1,4 @@
 *.excalidraw
 *.env
 __pycache__
-api/reviews.db
+api/reviews.db*

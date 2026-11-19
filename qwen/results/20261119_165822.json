@@ -1,0 +1,90 @@
+[
+  {
+    "review_id": "1632",
+    "prompt": "explain",
+    "answer": {
+      "food": {
+        "score": 5,
+        "quote": null,
+        "explanation": "Elogia la comida por ser increíblemente buena."
+      },
+      "wait_time": null,
+      "service": null,
+      "price": null,
+      "experience": {
+        "score": 5,
+        "quote": "It is an honor to pay $3 each",
+        "explanation": "Siente que pagar 3 dólares es un honor."
+      }
+    }
+  },
+  {
+    "review_id": "370",
+    "prompt": "explain",
+    "answer": {
+      "food": {
+        "score": 4,
+        "quote": "I always enjoy their custard",
+        "explanation": "Siempre disfruta de su helado de crema."
+      },
+      "wait_time": {
+        "score": 2,
+        "quote": "There is always an absolutely gigantic line",
+        "explanation": "Critica las filas gigantes y largas constantes."
+      },
+      "service": null,
+      "price": null,
+      "experience": {
+        "score": 4,
+        "quote": "the general experience",
+        "explanation": "Disfruta la experiencia general del lugar."
+      }
+    }
+  },
+  {
+    "review_id": "162",
+    "prompt": "explain",
+    "answer": {
+      "food": {
+        "score": 5,
+        "quote": "best place for hand made ice cream",
+        "explanation": "Elogia el helado artesanal y la combinación con pan caliente."
+      },
+      "wait_time": null,
+      "service": null,
+      "price": null,
+      "experience": {
+        "score": 5,
+        "quote": "must try if you are in the city",
+        "explanation": "Recomienda encarecidamente visitar este lugar en la ciudad."
+      }
+    }
+  },
+  {
+    "review_id": "1969",
+    "prompt": "explain",
+    "answer": {
+      "food": {
+        "score": 5,
+        "quote": "Los sabores siempre son perfectos",
+        "explanation": "Elogia los sabores de sus productos como perfectos."
+      },
+      "wait_time": null,
+      "service": {
+        "score": 5,
+        "quote": "El servicio al cliente es siempre excelente",
+        "explanation": "Califica la atención del personal como siempre excelente."
+      },
+      "price": {
+        "score": 5,
+        "quote": "excelente relación calidad-precio",
+        "explanation": "Valora positivamente la relación entre precio y calidad."
+      },
+      "experience": {
+        "score": 5,
+        "quote": "Mi favorito son el limón, el mango y la frambuesa",
+        "explanation": "Destaca sus sabores favoritos como parte de su experiencia."
+      }
+    }
+  }
+]

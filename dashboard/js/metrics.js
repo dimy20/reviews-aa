@@ -6,7 +6,7 @@ const maxOf = (arr) => arr.reduce((m, v) => (v > m ? v : m), -Infinity);
 const minOf = (arr) => arr.reduce((m, v) => (v < m ? v : m), Infinity);
 
 // ---------- Filtros ----------
-export const DEFAULT_FILTERS = { period: 'all', lang: 'all', stars: 'all', rest: 'all' };
+export const DEFAULT_FILTERS = { period: 'all', lang: 'all', rest: 'all' };
 
 export function timeRange(rows) {
   const ts = rows.map((r) => r.t).filter((t) => t != null);
@@ -23,12 +23,6 @@ export function windowRange(f, maxT) {
 function match(r, f) {
   if (f.lang !== 'all' && r.lang !== f.lang) return false;
   if (f.rest !== 'all' && r.rest !== f.rest) return false;
-  if (f.stars !== 'all') {
-    if (!r.rating) return false;
-    if (f.stars === 'high' && r.rating < 4) return false;
-    if (f.stars === 'mid' && r.rating !== 3) return false;
-    if (f.stars === 'low' && r.rating > 2) return false;
-  }
   return true;
 }
 
@@ -45,28 +39,24 @@ export function applyFilters(rows, f, maxT) {
 // ---------- Agregados ----------
 export function compute(rows) {
   const st = {
-    n: rows.length, rSum: 0, rN: 0, rDist: [0, 0, 0, 0, 0], anyNeg: 0, hidden: 0, rescue: 0, none: 0,
-    dims: DIMS.map(() => ({ m: 0, sum: 0, dist: [0, 0, 0, 0, 0], neg: 0, pos: 0, mid: 0, rNeg: 0, rNegN: 0, rPos: 0, rPosN: 0 })),
+    n: rows.length, anyNeg: 0, none: 0,
+    dims: DIMS.map(() => ({ m: 0, sum: 0, dist: [0, 0, 0, 0, 0], neg: 0, pos: 0, mid: 0 })),
   };
   for (const r of rows) {
-    if (r.rating) { st.rSum += r.rating; st.rN++; st.rDist[r.rating - 1]++; }
-    let neg = false, pos = false, any = false;
+    let neg = false, any = false;
     for (let i = 0; i < DIMS.length; i++) {
       const v = r.s[i];
       if (!v) continue;
       any = true;
       const d = st.dims[i];
       d.m++; d.sum += v; d.dist[v - 1]++;
-      if (v <= 2) { d.neg++; neg = true; if (r.rating) { d.rNeg += r.rating; d.rNegN++; } }
-      else if (v >= 4) { d.pos++; pos = true; if (r.rating) { d.rPos += r.rating; d.rPosN++; } }
+      if (v <= 2) { d.neg++; neg = true; }
+      else if (v >= 4) d.pos++;
       else d.mid++;
     }
     if (!any) st.none++;
     if (neg) st.anyNeg++;
-    if (neg && r.rating >= 4) st.hidden++;
-    if (pos && r.rating && r.rating <= 2) st.rescue++;
   }
-  st.avgR = st.rN ? st.rSum / st.rN : null;
   st.dims.forEach((d, i) => {
     d.i = i;
     d.avg = d.m ? d.sum / d.m : null;
@@ -75,10 +65,7 @@ export function compute(rows) {
     d.negMent = d.m ? d.neg / d.m : 0;
     d.posMent = d.m ? d.pos / d.m : 0;
     d.midMent = d.m ? d.mid / d.m : 0;
-    d.starsNeg = d.rNegN >= 3 ? d.rNeg / d.rNegN : null;
-    d.starsPos = d.rPosN >= 3 ? d.rPos / d.rPosN : null;
-    d.impact = d.starsNeg != null && d.starsPos != null ? d.starsPos - d.starsNeg : null;
-    d.priority = d.negAll * (d.impact != null ? Math.max(0.5, d.impact) : 1);
+    d.priority = d.negAll; // lo principal a arreglar: el aspecto del que más reseñas se quejan
   });
   const withM = st.dims.filter((d) => d.m);
   st.avgDims = withM.length ? withM.reduce((s, d) => s + d.sum, 0) / withM.reduce((s, d) => s + d.m, 0) : null;
@@ -236,7 +223,5 @@ export function explainReview(r) {
   if (neg.length) parts.push(`critica ${list(neg)}`);
   if (mid.length) parts.push(`tiene una opinión mixta sobre ${list(mid)}`);
   let out = cap(parts.join('; ')) + '.';
-  if (r.rating >= 4 && neg.length) out += ` Aunque puso ${r.rating} estrellas, hay una queja que la nota global no muestra.`;
-  if (r.rating && r.rating <= 2 && pos.length) out += ` Pese a la nota baja, rescata ${list(pos)}.`;
   return out;
 }

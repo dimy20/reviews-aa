@@ -19,6 +19,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY settings.py infra.yaml ./
 COPY api/ api/
 COPY engine/ engine/
+# fastText para detectar el idioma (settings.lid_model_path)
+COPY models/lid.176.ftz models/lid.176.ftz
 
 # The SQLite database lives in /data, mounted as a volume so it survives rebuilds.
 ENV REVIEWS_DB_PATH=/data/reviews.db

@@ -24,7 +24,7 @@ def load_aspects() -> dict:
     for a in aspects:
         with open(a, "r", encoding="utf-8") as f:
             text = f.read()
-            aspect_name = a.split("/")[-1].split(".")[0]
+            aspect_name = Path(a).stem  # no a.split("/"): en Windows glob devuelve rutas con "\"
             ans[aspect_name] = f"{text}\n\n{IGNORE_OTHER_ASPECTS_INSTRUCTION}"
     return ans
 

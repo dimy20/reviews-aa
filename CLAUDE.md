@@ -4,17 +4,19 @@ Análisis de reseñas de restaurantes por aspecto: cada reseña (en, es o pt) re
 
 ## Flujo
 
-El pipeline se arma y se expone en `api/`: `POST /reviews/analyze` va a encadenar estos pasos y guardar el resultado. Las piezas de cada paso (traducir, puntuar, explicar) viven en `engine/`; `api/` las orquesta y las expone por HTTP. Hoy la ruta solo guarda la reseña, sin correr ningún paso.
+El pipeline se arma y se expone en `api/`: `POST /reviews/analyze` guarda la reseña, responde enseguida (202, `status = 'pending'`) y encadena estos pasos de fondo (`api/analyze.py`); el dashboard la ve terminada en el próximo `GET`. Las piezas de cada paso viven en `engine/`; `api/` las orquesta y las expone por HTTP. Todo es async, para que muchas reseñas a la vez no se esperen entre sí.
 
 ```
 reseña (en/es/pt)
-  -> detectar idioma (langdetect)                       main.py: detect_lang (script suelto, todavía no lo usa la API)
+  -> detectar idioma (fastText, models/lid.176.ftz)      engine/lang.py: detect_lang
   -> traducir a inglés si es es/pt (Hy-MT2, OpenRouter)  engine/pipeline.py: translate_to_english
-  -> kev-4b puntúa las 5 dimensiones (pod en RunPod)     engine/pipeline.py: kev_assing_ratings   (sin implementar)
-  -> un LLM explica cada puntaje (Qwen, OpenRouter)      engine/pipeline.py: explain_kev_ratings  (sin implementar)
-  -> se guarda en SQLite                                 api/ (POST /reviews/analyze)
-  -> el dashboard la muestra                             dashboard/ (GET /reviews)
+  -> kev-4b puntúa la traducción (pod en RunPod)         engine/pipeline.py: kev_assing_ratings   (kev BASE; falta el fine-tuneado)
+  -> Qwen explica con la reseña ORIGINAL (OpenRouter)    engine/explain.py: explain_kev_ratings
+  -> se guarda en SQLite, paso por paso                  api/analyze.py, api/db.py
+  -> el dashboard la muestra                             dashboard/ (GET /reviews/)
 ```
+
+kev lee el inglés (`text_en`) y Qwen el original (`text`): la cita sale en el idioma del cliente y la explicación en español. Si un paso falla, la reseña queda con `status = 'error'` y el motivo en `error`; lo hecho hasta ahí queda guardado.
 
 kev no es un LLM generativo: recibe un texto (`state`) y preguntas tipadas (`questions`), y devuelve una distribución de probabilidad por pregunta. Cada dimensión es una pregunta `Choice` cuyas instrucciones salen de `engine/instructions/`.
 
@@ -38,14 +40,21 @@ Valores posibles: 1–5 o N/A. **Cómo se guarda N/A depende del lugar:**
 
 ```
 api/                 API FastAPI: acá se arma y se expone el pipeline (reseñas que llegan del formulario)
-  main.py            app, lifespan, CORS y rutas GET /reviews, POST /reviews/analyze
-  db.py              conexión SQLite + esquema de la tabla reviews (init_db)
+  main.py            app, lifespan, CORS, rutas GET /reviews/, POST /reviews/analyze y to_dashboard
+  analyze.py         el pipeline de una reseña: encadena los pasos y guarda cada uno
+  db.py              esquema de la tabla reviews (init_db) y consultas async (asyncio.to_thread)
   Dockerfile
 engine/              las piezas de cada paso del pipeline, compartidas por la API y los scripts
-  pipeline.py        traducción, KevRatings, puntuar y explicar (las dos últimas sin implementar)
+  lang.py            detección de idioma con fastText (en/es/pt)
+  pipeline.py        traducción (Hy-MT2) y kev (AsyncTypeSafeClient: espera /ping, reintenta, 4 a la vez)
+  explain.py         Qwen: prompt, schema JSON, chequeo de citas y explain_kev_ratings
+  prompts/explain.txt  el prompt de Qwen que usa la API
+  openrouter.py      un solo cliente de OpenRouter para todo el proceso
   aspects.py         carga engine/instructions/ y arma ejemplos en formato kev
   instructions/      un .txt por dimensión: la pregunta que se le hace a kev
   infra.py           levanta el pod de kev en RunPod (o reusa el que ya está corriendo)
+qwen/                pruebas de prompts de Qwen sin la API: sample_kev.py (puntúa con kev) y run.py
+models/lid.176.ftz   modelo de fastText (lo copia api/Dockerfile)
 settings.py          toda la configuración: get_settings()
 infra.yaml           imagen, volumen, datacenter, puerto y GPUs del pod de kev
 dashboard/           HTML/CSS/JS sin build (ver dashboard/README.md)
@@ -64,7 +73,7 @@ reseñas/             datos: CSVs por idioma, labels.db, splits/ y splits_en/ (+
 data/                CSVs originales en español y portugués
 notebooks/           experimentos numerados (dataset, detección de idioma, traductores, modelos desplegados)
 few_shot_etiquetado_resenas.md  prompt few-shot y criterios de etiquetado (la referencia de cada dimensión)
-main.py              script suelto de detección de idioma
+main.py              script suelto de detección de idioma con langdetect (la API usa engine/lang.py)
 compose.yaml         stack de la herramienta de etiquetado (app + Caddy)
 compose.app.yaml     stack de la API + dashboard
 ```
@@ -117,20 +126,20 @@ uv run tools/labeling/app.py serve              # http://127.0.0.1:8765
 
 La API levanta el pod a demanda y lo borra cuando nadie lo usa. Todo está en `engine/infra.py`, que es la única fuente de cómo se levanta, se encuentra y se borra el pod: la API, `deploy_models.py` y los notebooks lo usan.
 
-**Levantar: `provision_pod()`**, dependencia (`Depends`) de `POST /reviews/analyze`, así que corre en cada request. Lee `infra.yaml` y:
+**Levantar: `provision_pod()`**, que `api/analyze.py` llama al empezar el análisis de cada reseña (con `asyncio.to_thread`, porque RunPod bloquea). Lee `infra.yaml` y:
 
 1. Le pide a RunPod los pods de la cuenta (`runpod.get_pods()`) y busca uno llamado `kev` en `RUNNING`. Si lo hay, lo devuelve sin crear otro. No hay estado local: RunPod es la fuente de verdad, y el nombre `kev` es lo que identifica al pod.
-2. Si no hay ninguno, prueba las GPUs de `devices` en orden (cada `wait_interval` s, hasta `max_attempts` intentos) y crea el pod. Mientras tanto el request queda esperando (hasta ~10 min si no hay GPU libre).
+2. Si no hay ninguno, prueba las GPUs de `devices` en orden (cada `wait_interval` s, hasta `max_attempts` intentos) y crea el pod. Mientras tanto el análisis de esa reseña queda esperando (hasta ~10 min si no hay GPU libre); el cliente no, porque el POST ya respondió.
 
 Devuelve `{id, base_url, health_url}`; las URLs se arman con el id y el `port` de `infra.yaml` (`health_url` = `<base_url>/ping`). Devuelve el pod apenas RunPod lo crea, sin esperar a que kev cargue: quien llame a kev tiene que tolerar los 502 del arranque.
 
-- Si falta `KEV_API_KEY` o `HF_TOKEN`, o no hubo GPU libre, lanza `PodError`; `api/main.py` lo convierte en un **503** con el motivo. No usar `SystemExit` en `engine/`: corre dentro de requests.
+- Si falta `KEV_API_KEY` o `HF_TOKEN`, o no hubo GPU libre, lanza `PodError`; la reseña queda con `status = 'error'` y el motivo (`pod de kev: ...`). No usar `SystemExit` en `engine/`: corre dentro de la API.
 - `POD_LOCK` hace que buscar-o-crear (y el borrado del watcher) sea de a uno. Dos requests sin pod crean **un** pod: el segundo espera al primero y lo reusa.
 
 **Borrar por inactividad: `watch_pod_activity()`**, tarea de fondo que arranca y se cancela en el `lifespan` de `api/main.py`.
 
 - `EXPIRES_AT` (en memoria) es cuándo se borra el pod, y `KNOWN_POD_ID` es el pod al que corresponde ese plazo.
-- Cada `provision_pod()` corre el plazo a ahora + `MAX_POD_INACTIVITY` (3 min); si el pod es nuevo, suma `BOOT_GRACE` (2 min) porque tarda en cargar kev. El plazo se corre al empezar cada request (cuando corre la dependencia), no al terminar.
+- Cada `provision_pod()` corre el plazo a ahora + `MAX_POD_INACTIVITY` (3 min); si el pod es nuevo, suma `BOOT_GRACE` (2 min) porque tarda en cargar kev. El plazo se corre al empezar cada análisis, no al terminar.
 - Cada 60 s (`_check_pod`, con `POD_LOCK` tomado) le pregunta a RunPod por el pod `kev` corriendo:
   - **No hay pod:** no hace nada.
   - **Pod con un id que la API no conocía** (lo levantó `deploy_models.py up`, o la API recién arranca o se reinició): le da una ventana completa de 3 + 2 min desde que lo ve, sin borrarlo. Así un pod del script no hereda un plazo viejo y se borra recién levantado, ni vive para siempre porque la API no lo tenía en cuenta. Y un reinicio nunca deja una GPU cobrando: el pod que ya estuviera corriendo se borra si no llega ningún request en esa ventana. Los reinicios del modo watch solo vuelven a dar la ventana.
@@ -152,7 +161,7 @@ Devuelve `{id, base_url, health_url}`; las URLs se arman con el id y el `port` d
 
 | Archivo | Quién la usa | Tablas |
 |---|---|---|
-| `api/reviews.db` (en Docker: volumen `api-data`, `/data/reviews.db`) | API | `reviews` (de `api/db.py: init_db`, que corre en el lifespan) |
+| `api/reviews.db` (en Docker: volumen `api-data`, `/data/reviews.db`) | API | `reviews` (de `api/db.py: init_db`, que corre en el lifespan): `text` original, `text_en` para kev, puntajes, `explanations` (JSON de Qwen) y `status` |
 | `reseñas/labels.db` | etiquetas humanas de referencia, `dashboard/scripts/build_data.py` | `reviews`, `labels`, `label_history`, `skips`, `claims`, `suggestions` |
 | `tools/labeling/labels.db` | la herramienta de etiquetado en local | mismo esquema |
 
@@ -167,9 +176,12 @@ Devuelve `{id, base_url, health_url}`; las URLs se arman con el id y el `port` d
 
 ## Estado actual / pendientes
 
-- `kev_assing_ratings` y `explain_kev_ratings` en `engine/pipeline.py` están vacías: `POST /reviews/analyze` guarda la reseña con los puntajes en `NULL`.
-- El dashboard espera otro contrato que el que da la API (ver `dashboard/README.md`): manda `{text, rating, name}` (la API pide `user`) y espera `GET /reviews/` -> `{dims, reviews}` con `scores` en lista. Con `apiBase` configurado, el formulario hoy recibe 422.
-- `KevRatings` (`engine/pipeline.py`) usa `"N/A"`, mientras que `api/reviews.db` usa `-1`: hay que convertir al guardar.
+- **Falta el kev fine-tuneado.** La API usa el kev base del pod (`KEV_MODEL = "kev-latest"` en `engine/pipeline.py`). El tuneado lo agrega otra persona: cambiar `KEV_MODEL` (o la imagen/volumen de `infra.yaml` si se sirve desde otro pod). El resto del pipeline no cambia.
+- `api/analyze.py` llama a `provision_pod` (en otro hilo) al empezar cada análisis y le pasa el pod a `kev_assing_ratings`. Si el pod es nuevo, el análisis espera a que kev cargue (~3 min, hasta `KEV_BOOT_TIMEOUT`); con el pod ya prendido tarda unos segundos. El cliente no espera: el POST ya respondió. Para no esperar, levantarlo antes con `deploy_models.py up`, teniendo en cuenta que el watcher lo borra tras 5 min sin reseñas.
+- `fasttext-wheel` está en el grupo `ml` de `pyproject.toml`, pero ahora lo usa la API: hay que pasarlo a las dependencias principales (`uv add fasttext-wheel`) o la imagen de Docker no lo instala.
+- La API ya usa el contrato del dashboard: recibe `{text, name}` (sin estrellas: el análisis sale solo del texto) y `GET /reviews/` devuelve `{dims, reviews}` con `scores`, `quotes` y `evidence` en listas (`to_dashboard` en `api/main.py`).
+- Las rutas son `async`: todo lo que bloquea (sqlite3, RunPod) va con `asyncio.to_thread`, y las llamadas a modelos tienen que usar los clientes async (`chat.send_async`, `AsyncTypeSafeClient`). Una llamada sincrónica dentro de una ruta `async` frena a todas las demás.
+- `KevRatings` (`engine/pipeline.py`) usa `"N/A"` y `api/reviews.db` usa `-1`: `db.save_scores` hace la conversión.
 
 ## Convenciones
 

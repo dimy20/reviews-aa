@@ -4,7 +4,7 @@
 // las reseñas nuevas en este navegador (localStorage).
 // Con CONFIG.apiBase definido usa solo dos rutas (ver dashboard/README.md):
 //   GET  {apiBase}/reviews/          -> { dims, reviews: [...] }
-//   POST {apiBase}/reviews/analyze   <- { text, rating, name }  -> la reseña ya analizada
+//   POST {apiBase}/reviews/analyze   <- { text, name }  -> la reseña ya analizada
 // Las respuestas y los seguimientos siempre quedan en este navegador.
 import { CONFIG } from './config.js';
 import { fromJSON, parseFile } from './data.js';
@@ -62,11 +62,11 @@ export async function loadReviews() {
   return withActions(rows).concat(store.json(K.pend, []));
 }
 
-export async function submitReview({ text, rating, name }) {
+export async function submitReview({ text, name }) {
   if (CONFIG.apiBase) {
     const res = await fetch(`${CONFIG.apiBase}/reviews/analyze`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, rating: rating || null, name: name || null }),
+      body: JSON.stringify({ text, name: name || null }),
     });
     if (!res.ok) throw new Error(`La API respondió ${res.status}`);
     store.set(K.ping, String(Date.now())); // avisa al dashboard abierto en otra pestaña
@@ -76,7 +76,7 @@ export async function submitReview({ text, rating, name }) {
   const list = store.json(K.pend, []);
   list.push({
     id: `nueva-${now}`, text, t: now, date: new Date(now).toISOString().slice(0, 10),
-    lang: '', rating: rating || 0, rest: '', source: 'Formulario', name: name || '', orig: '',
+    lang: '', rest: '', source: 'Formulario', name: name || '', orig: '',
     s: [0, 0, 0, 0, 0], ev: null, reply: '', replyAt: null, follow: false, pending: true,
   });
   if (!store.set(K.pend, JSON.stringify(list))) throw new Error('No se pudo guardar en este navegador.');

@@ -14,6 +14,10 @@ export const CONFIG = {
   // Cada cuántos segundos se piden reseñas nuevas a la API.
   refreshSeconds: 15,
 
+  // Largo de la explicación de cada aspecto (la escribe Qwen), en palabras.
+  // Con menos de min no se muestra (queda "—"); con más de max se corta con "…".
+  explanationWords: { min: 4, max: 200 },
+
   sampleData: 'data/reviews.json',
   publicForm: 'opinar.html',
 };

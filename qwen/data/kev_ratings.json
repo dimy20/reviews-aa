@@ -1,0 +1,690 @@
+{
+  "source": "test",
+  "seed": 42,
+  "reviews": [
+    {
+      "id": "1632",
+      "lang": "en",
+      "text": "No words for this deliciousness. At least four types of vegan donuts every day - not sure which is my fav because they're all so incredibly good. It is an honor to pay $3 each for these donuts :-)",
+      "text_en": "No words for this deliciousness. At least four types of vegan donuts every day - not sure which is my fav because they're all so incredibly good. It is an honor to pay $3 each for these donuts :-)",
+      "stars": "5",
+      "human": {
+        "food": "5",
+        "wait_time": "N/A",
+        "service": "N/A",
+        "price": "5",
+        "experience": "5"
+      },
+      "kev": {
+        "food": {
+          "choice": "5",
+          "confidence": 0.832,
+          "probabilities": {
+            "1": 0.0,
+            "2": 0.001,
+            "3": 0.01,
+            "4": 0.095,
+            "5": 0.86,
+            "N/A": 0.034
+          }
+        },
+        "wait_time": {
+          "choice": "N/A",
+          "confidence": 0.917,
+          "probabilities": {
+            "1": 0.004,
+            "2": 0.006,
+            "3": 0.025,
+            "4": 0.017,
+            "5": 0.016,
+            "N/A": 0.931
+          }
+        },
+        "service": {
+          "choice": "N/A",
+          "confidence": 0.883,
+          "probabilities": {
+            "1": 0.002,
+            "2": 0.004,
+            "3": 0.031,
+            "4": 0.04,
+            "5": 0.021,
+            "N/A": 0.902
+          }
+        },
+        "price": {
+          "choice": "N/A",
+          "confidence": 0.129,
+          "probabilities": {
+            "1": 0.01,
+            "2": 0.12,
+            "3": 0.26,
+            "4": 0.234,
+            "5": 0.102,
+            "N/A": 0.274
+          }
+        },
+        "experience": {
+          "choice": "5",
+          "confidence": 0.764,
+          "probabilities": {
+            "1": 0.0,
+            "2": 0.0,
+            "3": 0.008,
+            "4": 0.159,
+            "5": 0.803,
+            "N/A": 0.029
+          }
+        }
+      }
+    },
+    {
+      "id": "370",
+      "lang": "en",
+      "text": "Jarling's is easily one of the most famous establishments in all of C-U. There is always an absolutely gigantic line to get the frozen treats they provide. Though I don't go often, because of the aforementioned long lines, I always enjoy their custard and the general experience of going to Jarling's. I'll keep stopping in...as long as the lines aren't long! Definitely a must-go when you're in C-U.",
+      "text_en": "Jarling's is easily one of the most famous establishments in all of C-U. There is always an absolutely gigantic line to get the frozen treats they provide. Though I don't go often, because of the aforementioned long lines, I always enjoy their custard and the general experience of going to Jarling's. I'll keep stopping in...as long as the lines aren't long! Definitely a must-go when you're in C-U.",
+      "stars": "4",
+      "human": {
+        "food": "4",
+        "wait_time": "N/A",
+        "service": "N/A",
+        "price": "N/A",
+        "experience": "4"
+      },
+      "kev": {
+        "food": {
+          "choice": "4",
+          "confidence": 0.51,
+          "probabilities": {
+            "1": 0.001,
+            "2": 0.002,
+            "3": 0.073,
+            "4": 0.592,
+            "5": 0.258,
+            "N/A": 0.074
+          }
+        },
+        "wait_time": {
+          "choice": "2",
+          "confidence": 0.371,
+          "probabilities": {
+            "1": 0.116,
+            "2": 0.476,
+            "3": 0.141,
+            "4": 0.026,
+            "5": 0.016,
+            "N/A": 0.225
+          }
+        },
+        "service": {
+          "choice": "N/A",
+          "confidence": 0.91,
+          "probabilities": {
+            "1": 0.002,
+            "2": 0.007,
+            "3": 0.035,
+            "4": 0.023,
+            "5": 0.008,
+            "N/A": 0.925
+          }
+        },
+        "price": {
+          "choice": "N/A",
+          "confidence": 0.818,
+          "probabilities": {
+            "1": 0.005,
+            "2": 0.011,
+            "3": 0.083,
+            "4": 0.041,
+            "5": 0.013,
+            "N/A": 0.849
+          }
+        },
+        "experience": {
+          "choice": "4",
+          "confidence": 0.432,
+          "probabilities": {
+            "1": 0.001,
+            "2": 0.005,
+            "3": 0.115,
+            "4": 0.527,
+            "5": 0.287,
+            "N/A": 0.066
+          }
+        }
+      }
+    },
+    {
+      "id": "162",
+      "lang": "en",
+      "text": "This is pretty much the best place for hand made ice cream. If you are going there one should definitely try their dough melt. It is the best concept ever. They will put a scoop of your choice of flavor between a hot bun. The combination is OMG! This is a must try if you are in the city.",
+      "text_en": "This is pretty much the best place for hand made ice cream. If you are going there one should definitely try their dough melt. It is the best concept ever. They will put a scoop of your choice of flavor between a hot bun. The combination is OMG! This is a must try if you are in the city.",
+      "stars": "5",
+      "human": {
+        "food": "5",
+        "wait_time": "N/A",
+        "service": "N/A",
+        "price": "N/A",
+        "experience": "5"
+      },
+      "kev": {
+        "food": {
+          "choice": "5",
+          "confidence": 0.749,
+          "probabilities": {
+            "1": 0.0,
+            "2": 0.001,
+            "3": 0.015,
+            "4": 0.142,
+            "5": 0.791,
+            "N/A": 0.051
+          }
+        },
+        "wait_time": {
+          "choice": "N/A",
+          "confidence": 0.905,
+          "probabilities": {
+            "1": 0.004,
+            "2": 0.005,
+            "3": 0.026,
+            "4": 0.021,
+            "5": 0.023,
+            "N/A": 0.92
+          }
+        },
+        "service": {
+          "choice": "N/A",
+          "confidence": 0.901,
+          "probabilities": {
+            "1": 0.002,
+            "2": 0.003,
+            "3": 0.023,
+            "4": 0.035,
+            "5": 0.02,
+            "N/A": 0.918
+          }
+        },
+        "price": {
+          "choice": "N/A",
+          "confidence": 0.724,
+          "probabilities": {
+            "1": 0.003,
+            "2": 0.006,
+            "3": 0.061,
+            "4": 0.1,
+            "5": 0.059,
+            "N/A": 0.77
+          }
+        },
+        "experience": {
+          "choice": "5",
+          "confidence": 0.819,
+          "probabilities": {
+            "1": 0.0,
+            "2": 0.0,
+            "3": 0.009,
+            "4": 0.107,
+            "5": 0.849,
+            "N/A": 0.035
+          }
+        }
+      }
+    },
+    {
+      "id": "1969",
+      "lang": "es",
+      "text": "Siempre obtengo una excelente relación calidad-precio en Mitchell's. Los sabores siempre son perfectos. El servicio al cliente es siempre excelente. Mi favorito son el limón, el mango y la frambuesa.",
+      "text_en": "I always get an excellent quality-price ratio at Mitchell’s. The flavors are always perfect. The customer service is also always excellent. My favorites are lemon, mango, and cranberry.",
+      "stars": "5",
+      "human": {
+        "food": "5",
+        "wait_time": "N/A",
+        "service": "5",
+        "price": "5",
+        "experience": "5"
+      },
+      "kev": {
+        "food": {
+          "choice": "5",
+          "confidence": 0.683,
+          "probabilities": {
+            "1": 0.0,
+            "2": 0.001,
+            "3": 0.016,
+            "4": 0.205,
+            "5": 0.736,
+            "N/A": 0.042
+          }
+        },
+        "wait_time": {
+          "choice": "N/A",
+          "confidence": 0.971,
+          "probabilities": {
+            "1": 0.001,
+            "2": 0.001,
+            "3": 0.009,
+            "4": 0.008,
+            "5": 0.004,
+            "N/A": 0.976
+          }
+        },
+        "service": {
+          "choice": "5",
+          "confidence": 0.635,
+          "probabilities": {
+            "1": 0.0,
+            "2": 0.0,
+            "3": 0.008,
+            "4": 0.26,
+            "5": 0.696,
+            "N/A": 0.036
+          }
+        },
+        "price": {
+          "choice": "5",
+          "confidence": 0.368,
+          "probabilities": {
+            "1": 0.0,
+            "2": 0.001,
+            "3": 0.023,
+            "4": 0.458,
+            "5": 0.473,
+            "N/A": 0.045
+          }
+        },
+        "experience": {
+          "choice": "5",
+          "confidence": 0.761,
+          "probabilities": {
+            "1": 0.0,
+            "2": 0.0,
+            "3": 0.007,
+            "4": 0.162,
+            "5": 0.801,
+            "N/A": 0.029
+          }
+        }
+      }
+    },
+    {
+      "id": "831",
+      "lang": "es",
+      "text": "¡La verdad, estaba súper emocionado de probar una galleta con chispas de chocolate de Thomas Keller. Se supone que son las MEJORES. Estaban buenas. Simplemente buenas. No eran mejores ni peores que una galleta de Starbucks. Estoy bastante decepcionado. Pero son grandes, están rellenas de chocolate y siguen siendo galletas, así que... ***/*****",
+      "text_en": "Honestly, I was really excited to try a chocolate sparkle cookie from Thomas Keller. They’re supposed to be the best. They were good. Just good. They weren’t better or worse than a Starbucks cookie. I’m quite disappointed. But they’re big, filled with chocolate, and still cookies, so… ***/*****",
+      "stars": "3",
+      "human": {
+        "food": "3",
+        "wait_time": "N/A",
+        "service": "N/A",
+        "price": "N/A",
+        "experience": "3"
+      },
+      "kev": {
+        "food": {
+          "choice": "3",
+          "confidence": 0.698,
+          "probabilities": {
+            "1": 0.015,
+            "2": 0.114,
+            "3": 0.749,
+            "4": 0.029,
+            "5": 0.002,
+            "N/A": 0.092
+          }
+        },
+        "wait_time": {
+          "choice": "N/A",
+          "confidence": 0.918,
+          "probabilities": {
+            "1": 0.011,
+            "2": 0.017,
+            "3": 0.034,
+            "4": 0.004,
+            "5": 0.004,
+            "N/A": 0.932
+          }
+        },
+        "service": {
+          "choice": "N/A",
+          "confidence": 0.798,
+          "probabilities": {
+            "1": 0.016,
+            "2": 0.031,
+            "3": 0.111,
+            "4": 0.008,
+            "5": 0.003,
+            "N/A": 0.832
+          }
+        },
+        "price": {
+          "choice": "N/A",
+          "confidence": 0.323,
+          "probabilities": {
+            "1": 0.035,
+            "2": 0.185,
+            "3": 0.314,
+            "4": 0.027,
+            "5": 0.004,
+            "N/A": 0.436
+          }
+        },
+        "experience": {
+          "choice": "3",
+          "confidence": 0.557,
+          "probabilities": {
+            "1": 0.018,
+            "2": 0.249,
+            "3": 0.631,
+            "4": 0.017,
+            "5": 0.002,
+            "N/A": 0.083
+          }
+        }
+      }
+    },
+    {
+      "id": "749",
+      "lang": "es",
+      "text": "Como es obvio, el helado es increíble. La razón principal por la que le he dado una estrella es que la \"gestión/propietarios\" tratan a sus empleados de manera completamente poco profesional. Por ejemplo, he visto a empleados regañados por \"llenar los boles demasiado\". En cuanto al precio, las porciones no son proporcionales a lo que se paga. Le recomiendo que vaya a Whole Foods; allí tienen el mismo helado, pero sin la falta de profesionalidad y con porciones más generosas.",
+      "text_en": "Obviously, the ice cream is incredible. The main reason I gave it one star is that the “management/owners” treat their employees in a completely unprofessional way. For example, I’ve seen employees being scolded for “filling the bowls too much”. As for the price, the portions aren’t proportional to what’s paid. I recommend going to Whole Foods; they have the same ice cream, but without the lack of professionalism and with more generous portions.",
+      "stars": "1",
+      "human": {
+        "food": "5",
+        "wait_time": "N/A",
+        "service": "1",
+        "price": "2",
+        "experience": "2"
+      },
+      "kev": {
+        "food": {
+          "choice": "4",
+          "confidence": 0.193,
+          "probabilities": {
+            "1": 0.03,
+            "2": 0.064,
+            "3": 0.188,
+            "4": 0.328,
+            "5": 0.275,
+            "N/A": 0.115
+          }
+        },
+        "wait_time": {
+          "choice": "N/A",
+          "confidence": 0.935,
+          "probabilities": {
+            "1": 0.019,
+            "2": 0.021,
+            "3": 0.012,
+            "4": 0.001,
+            "5": 0.001,
+            "N/A": 0.946
+          }
+        },
+        "service": {
+          "choice": "1",
+          "confidence": 0.6,
+          "probabilities": {
+            "1": 0.667,
+            "2": 0.304,
+            "3": 0.005,
+            "4": 0.0,
+            "5": 0.0,
+            "N/A": 0.024
+          }
+        },
+        "price": {
+          "choice": "2",
+          "confidence": 0.62,
+          "probabilities": {
+            "1": 0.236,
+            "2": 0.683,
+            "3": 0.029,
+            "4": 0.001,
+            "5": 0.0,
+            "N/A": 0.05
+          }
+        },
+        "experience": {
+          "choice": "1",
+          "confidence": 0.487,
+          "probabilities": {
+            "1": 0.572,
+            "2": 0.378,
+            "3": 0.014,
+            "4": 0.001,
+            "5": 0.0,
+            "N/A": 0.034
+          }
+        }
+      }
+    },
+    {
+      "id": "659",
+      "lang": "pt",
+      "text": "Um cupcake vegano realmente delicioso! A cobertura é de coco, mas ainda é DELICIOSA! Muito macio, adoraria que tivessem mais opções veganas!",
+      "text_en": "A really delicious vegan cupcake! The topping is coconut, but it’s still delicious! Very soft, I would love if they had more vegan options!",
+      "stars": "5",
+      "human": {
+        "food": "4",
+        "wait_time": "N/A",
+        "service": "N/A",
+        "price": "N/A",
+        "experience": "N/A"
+      },
+      "kev": {
+        "food": {
+          "choice": "5",
+          "confidence": 0.629,
+          "probabilities": {
+            "1": 0.0,
+            "2": 0.001,
+            "3": 0.014,
+            "4": 0.256,
+            "5": 0.691,
+            "N/A": 0.038
+          }
+        },
+        "wait_time": {
+          "choice": "N/A",
+          "confidence": 0.972,
+          "probabilities": {
+            "1": 0.002,
+            "2": 0.003,
+            "3": 0.008,
+            "4": 0.005,
+            "5": 0.005,
+            "N/A": 0.977
+          }
+        },
+        "service": {
+          "choice": "N/A",
+          "confidence": 0.761,
+          "probabilities": {
+            "1": 0.002,
+            "2": 0.013,
+            "3": 0.046,
+            "4": 0.08,
+            "5": 0.058,
+            "N/A": 0.801
+          }
+        },
+        "price": {
+          "choice": "N/A",
+          "confidence": 0.808,
+          "probabilities": {
+            "1": 0.002,
+            "2": 0.006,
+            "3": 0.038,
+            "4": 0.066,
+            "5": 0.048,
+            "N/A": 0.84
+          }
+        },
+        "experience": {
+          "choice": "5",
+          "confidence": 0.538,
+          "probabilities": {
+            "1": 0.0,
+            "2": 0.001,
+            "3": 0.015,
+            "4": 0.334,
+            "5": 0.615,
+            "N/A": 0.035
+          }
+        }
+      }
+    },
+    {
+      "id": "263",
+      "lang": "pt",
+      "text": "Eu adoro sorvete, mas não este sorvete. Tem uma textura um pouco gordurosa e os sabores não são muito interessantes. Eu experimentei o \"Hailley's Comet\" (com caramelo e chocolate) e um amigo experimentou o de biscoito. Nenhum dos dois gostou. Joguei fora cerca de 1/4 do meu sorvete. Custa US$ 3,64 por colher. Não vale a pena o preço ou as calorias.",
+      "text_en": "I love ice cream, but not this ice cream. It has a slightly greasy texture, and the flavors aren’t very interesting. I tried “Hailley’s Comet” (with caramel and chocolate), and a friend tried the cookie version. Neither of them liked it. I threw away about 1/4 of my ice cream. It costs $3.64 per spoonful. The price and calories don’t make any sense.",
+      "stars": "2",
+      "human": {
+        "food": "1",
+        "wait_time": "N/A",
+        "service": "N/A",
+        "price": "1",
+        "experience": "1"
+      },
+      "kev": {
+        "food": {
+          "choice": "2",
+          "confidence": 0.48,
+          "probabilities": {
+            "1": 0.39,
+            "2": 0.566,
+            "3": 0.015,
+            "4": 0.0,
+            "5": 0.0,
+            "N/A": 0.029
+          }
+        },
+        "wait_time": {
+          "choice": "N/A",
+          "confidence": 0.887,
+          "probabilities": {
+            "1": 0.038,
+            "2": 0.04,
+            "3": 0.016,
+            "4": 0.001,
+            "5": 0.0,
+            "N/A": 0.906
+          }
+        },
+        "service": {
+          "choice": "N/A",
+          "confidence": 0.85,
+          "probabilities": {
+            "1": 0.044,
+            "2": 0.049,
+            "3": 0.03,
+            "4": 0.001,
+            "5": 0.0,
+            "N/A": 0.875
+          }
+        },
+        "price": {
+          "choice": "2",
+          "confidence": 0.365,
+          "probabilities": {
+            "1": 0.321,
+            "2": 0.471,
+            "3": 0.072,
+            "4": 0.001,
+            "5": 0.0,
+            "N/A": 0.135
+          }
+        },
+        "experience": {
+          "choice": "2",
+          "confidence": 0.401,
+          "probabilities": {
+            "1": 0.453,
+            "2": 0.501,
+            "3": 0.014,
+            "4": 0.0,
+            "5": 0.0,
+            "N/A": 0.032
+          }
+        }
+      }
+    },
+    {
+      "id": "1864",
+      "lang": "pt",
+      "text": "O próprio \"crack pie\" e o \"crack pie\" cremoso com as farinhas de milho adicionadas nunca falham em satisfazer meu desejo por doces da infância. Já visitei a unidade em Nova York, então estava familiarizado com o cardápio. O atendimento foi rápido neste local, e os funcionários foram simpáticos. Também experimentei o \"latte\" de \"crack pie\" gelado, que também estava delicioso. Se você ainda não veio aqui, definitivamente vale a pena conhecer este lugar.",
+      "text_en": "The “crack pie” and the creamy “crack pie” with corn flour never fail to satisfy my childhood love for desserts. I’ve been to the location in New York before, so I was familiar with the menu. The service was quick here, and the staff were friendly. I also tried the cold “crack pie” latte—it was also delicious. If you haven’t been here yet, it’s definitely worth visiting.",
+      "stars": "5",
+      "human": {
+        "food": "5",
+        "wait_time": "4",
+        "service": "4",
+        "price": "N/A",
+        "experience": "5"
+      },
+      "kev": {
+        "food": {
+          "choice": "5",
+          "confidence": 0.563,
+          "probabilities": {
+            "1": 0.0,
+            "2": 0.001,
+            "3": 0.022,
+            "4": 0.299,
+            "5": 0.636,
+            "N/A": 0.042
+          }
+        },
+        "wait_time": {
+          "choice": "4",
+          "confidence": 0.67,
+          "probabilities": {
+            "1": 0.002,
+            "2": 0.004,
+            "3": 0.034,
+            "4": 0.725,
+            "5": 0.167,
+            "N/A": 0.068
+          }
+        },
+        "service": {
+          "choice": "4",
+          "confidence": 0.539,
+          "probabilities": {
+            "1": 0.001,
+            "2": 0.001,
+            "3": 0.033,
+            "4": 0.616,
+            "5": 0.308,
+            "N/A": 0.041
+          }
+        },
+        "price": {
+          "choice": "N/A",
+          "confidence": 0.903,
+          "probabilities": {
+            "1": 0.001,
+            "2": 0.003,
+            "3": 0.028,
+            "4": 0.034,
+            "5": 0.014,
+            "N/A": 0.92
+          }
+        },
+        "experience": {
+          "choice": "5",
+          "confidence": 0.582,
+          "probabilities": {
+            "1": 0.0,
+            "2": 0.001,
+            "3": 0.02,
+            "4": 0.29,
+            "5": 0.652,
+            "N/A": 0.037
+          }
+        }
+      }
+    }
+  ]
+}

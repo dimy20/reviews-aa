@@ -12,7 +12,6 @@ const COLS = {
   text: ['text', 'review_text', 'review', 'resena', 'texto', 'comentario', 'comment'],
   date: ['date', 'fecha', 'review_date', 'created_at', 'fecha_resena'],
   lang: ['lang', 'idioma', 'language'],
-  rating: ['rating', 'rating_original', 'stars', 'estrellas', 'calificacion', 'puntuacion'],
   rest: ['restaurant', 'restaurante', 'local', 'sucursal', 'branch', 'business', 'business_name', 'negocio', 'store', 'tienda'],
   orig: ['original', 'source_en'],
   source: ['source', 'fuente', 'platform', 'plataforma', 'origen'],
@@ -33,7 +32,7 @@ export function fromJSON(data) {
   const list = Array.isArray(data) ? data : data.reviews || data.data || [];
   if (!list.length) return [];
   const dims = Array.isArray(data.dims) ? data.dims : DIMS.map((d) => d.key);
-  // Formato compacto: { dims, reviews: [{ id, text, scores: [...], evidence: [...] }] }
+  // Formato compacto: { dims, reviews: [{ id, text, scores: [...], quotes: [...], evidence: [...] }] }
   if (Array.isArray(list[0].scores) || list[0].pending || list[0].status === 'pending') {
     const idx = DIMS.map((d) => dims.indexOf(d.key));
     return list.map((r, i) => makeRow({
@@ -43,7 +42,9 @@ export function fromJSON(data) {
       orig: r.original,
       s: idx.map((j) => (j < 0 || !r.scores ? null : r.scores[j])),
       ev: r.evidence ? idx.map((j) => (j < 0 ? null : r.evidence[j])) : null,
+      qt: r.quotes ? idx.map((j) => (j < 0 ? null : r.quotes[j])) : null,
       pending: r.pending || r.status === 'pending',
+      failed: r.status === 'error', // el pipeline falló: la API manda el motivo en r.error
     })).filter(Boolean);
   }
   return fromObjects(list);
@@ -61,9 +62,11 @@ function fromObjects(rows) {
   if (dimCols.every((c) => !c)) throw new Error('No encontré columnas de puntajes (food, wait_time, service, price, experience).');
   const evCols = DIMS.map((d) => pick(d.aliases.flatMap((a) => [`${a}_evidence`, `${a}_evidencia`, `${a}_justification`, `${a}_justificacion`, `${a}_explicacion`])));
   const justCol = pick(['justifications', 'justificaciones', 'evidence', 'evidencia']);
+  const qtCols = DIMS.map((d) => pick(d.aliases.flatMap((a) => [`${a}_quote`, `${a}_cita`, `${a}_fragmento`])));
 
   return rows.map((r, i) => {
     let ev = evCols.some(Boolean) ? evCols.map((c) => (c ? r[c] : null)) : null;
+    const qt = qtCols.some(Boolean) ? qtCols.map((c) => (c ? r[c] : null)) : null;
     if (!ev && justCol && r[justCol]) {
       try {
         const j = typeof r[justCol] === 'string' ? JSON.parse(r[justCol]) : r[justCol];
@@ -72,9 +75,9 @@ function fromObjects(rows) {
     }
     const get = (k) => (col[k] ? r[col[k]] : null);
     return makeRow({
-      id: get('id') ?? i + 1, text: get('text'), date: get('date'), lang: get('lang'), rating: get('rating'),
+      id: get('id') ?? i + 1, text: get('text'), date: get('date'), lang: get('lang'),
       rest: get('rest'), orig: get('orig'), source: get('source'), reply: get('reply'),
-      s: dimCols.map((c) => (c ? r[c] : null)), ev,
+      s: dimCols.map((c) => (c ? r[c] : null)), ev, qt,
     });
   }).filter(Boolean);
 }
@@ -92,17 +95,20 @@ function makeRow(r) {
     t,
     date: t == null ? '' : new Date(t).toISOString().slice(0, 10),
     lang: normLang(r.lang),
-    rating: score(r.rating),
     rest: r.rest == null ? '' : String(r.rest).trim(),
     source: r.source ? String(r.source).trim() : '',
     name: r.name ? String(r.name).trim() : '',
     orig,
     s,
     ev: r.ev ? r.ev.map((e, i) => (s[i] && e ? String(e).trim() : '')) : null,
+    qt: r.qt ? r.qt.map((e, i) => (s[i] && e ? String(e).trim() : '')) : null,
     reply: r.reply ? String(r.reply) : '',
     replyAt: r.replyAt ?? r.reply_at ?? null,
     follow: Boolean(r.follow),
-    pending: Boolean(r.pending),
+    // pending: todavía sin puntajes (se está analizando o falló). failed: falló, con el motivo en error.
+    pending: Boolean(r.pending || r.failed),
+    failed: Boolean(r.failed),
+    error: r.error ? String(r.error) : '',
   };
 }
 
@@ -168,10 +174,10 @@ export function toCSV(rows) {
     const s = v == null ? '' : String(v);
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const head = ['id', 'date', 'restaurant', 'source', 'lang', 'rating', 'text', ...DIMS.map((d) => d.key), ...DIMS.map((d) => `${d.key}_evidence`), 'reply'];
+  const head = ['id', 'date', 'restaurant', 'source', 'lang', 'text', ...DIMS.map((d) => d.key), ...DIMS.map((d) => `${d.key}_evidence`), 'reply'];
   const lines = [head.join(',')];
   for (const r of rows) {
-    lines.push([r.id, r.date, r.rest, r.source, r.lang, r.rating || '', r.text,
+    lines.push([r.id, r.date, r.rest, r.source, r.lang, r.text,
       ...r.s.map((v) => v || 'N/A'), ...DIMS.map((_, i) => (r.ev && r.ev[i]) || ''), r.reply].map(esc).join(','));
   }
   return '﻿' + lines.join('\r\n');
