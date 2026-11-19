@@ -12,3 +12,7 @@ devices:
   - NVIDIA GeForce RTX 4090
 max_attempts: 20
 wait_interval: 30
+# Luego de fine tunear kev, esto lo transferimos al volume que provisionamos en runpod (revisar engine/infra.py)
+# fine-tuned-reviews son los resultados que estan en kev_results/fine_tuned/results
+run: /runpod-volume/fine-tuned-reviews
+#run: jaredpalmer/kev-4b@v1.0 -> este es kev base

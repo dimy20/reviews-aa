@@ -24,6 +24,7 @@ class InfraSettings(BaseModel):
     devices: list[str]  # GPUs to try, in order of preference
     max_attempts: int
     wait_interval: int  # seconds between attempts
+    run: str = "jaredpalmer/kev-4b@v1.0"  # KEV_RUN del pod: repo de HF o ruta en el network volume
 
 
 class Settings(BaseSettings):

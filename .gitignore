@@ -2,3 +2,4 @@
 *.env
 __pycache__
 api/reviews.db*
+kev_results/fine_tuned/results

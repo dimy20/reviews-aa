@@ -80,6 +80,7 @@ def create_kev_pod(infra: InfraSettings, name: str = "kev") -> CreatePodResult:
     port = infra.port
     image_name = infra.image
     network_volume_id = infra.network_volume_id
+    kev_run = infra.run
 
     pod = None
 
@@ -94,7 +95,8 @@ def create_kev_pod(infra: InfraSettings, name: str = "kev") -> CreatePodResult:
                     port=port,
                     gpu=device,
                     api_key=api_key,
-                    hf_token=hf_token
+                    hf_token=hf_token,
+                    run=kev_run
                 )
                 log.info("GPU: %s ", device)
                 break
@@ -125,7 +127,8 @@ def _create_pod(name: str,
                 port: int,
                 gpu: str,
                 api_key: str,
-                hf_token: str) -> dict:
+                hf_token: str,
+                run: str = None) -> dict:
 
     return runpod.create_pod(
         name=name,
@@ -141,6 +144,7 @@ def _create_pod(name: str,
         env={
             "KEV_API_KEY": api_key,
             "HF_TOKEN": hf_token,
+            "KEV_RUN": run
         },
         docker_args="bash -c 'exec .venv/bin/python serve_runpod.py --run $KEV_RUN --host 0.0.0.0 --port $KEV_PORT'",
     )
