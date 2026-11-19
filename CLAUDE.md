@@ -10,7 +10,7 @@ El pipeline se arma y se expone en `api/`: `POST /reviews/analyze` guarda la res
 reseña (en/es/pt)
   -> detectar idioma (fastText, models/lid.176.ftz)      engine/lang.py: detect_lang
   -> traducir a inglés si es es/pt (Hy-MT2, OpenRouter)  engine/pipeline.py: translate_to_english
-  -> kev-4b puntúa la traducción (pod en RunPod)         engine/pipeline.py: kev_assing_ratings   (kev BASE; falta el fine-tuneado)
+  -> kev fine-tuneado puntúa la traducción (RunPod)      engine/pipeline.py: kev_assing_ratings   (qué modelo: `run` de infra.yaml)
   -> Qwen explica con la reseña ORIGINAL (OpenRouter)    engine/explain.py: explain_kev_ratings
   -> se guarda en SQLite, paso por paso                  api/analyze.py, api/db.py
   -> el dashboard la muestra                             dashboard/ (GET /reviews/)
@@ -18,7 +18,7 @@ reseña (en/es/pt)
 
 kev lee el inglés (`text_en`) y Qwen el original (`text`): la cita sale en el idioma del cliente y la explicación en español. Si un paso falla, la reseña queda con `status = 'error'` y el motivo en `error`; lo hecho hasta ahí queda guardado.
 
-kev no es un LLM generativo: recibe un texto (`state`) y preguntas tipadas (`questions`), y devuelve una distribución de probabilidad por pregunta. Cada dimensión es una pregunta `Choice` cuyas instrucciones salen de `engine/instructions/`.
+kev no es un LLM generativo: recibe un texto (`state`) y preguntas tipadas (`questions`), y devuelve una distribución de probabilidad por pregunta. Cada dimensión es una pregunta `Choice` cuyas instrucciones salen de `engine/instructions/`. Las mismas instrucciones se usan para armar los datos de fine-tuning (`engine/aspects.py`), así kev recibe en producción las preguntas con las que se entrenó.
 
 ## Las cinco dimensiones
 
@@ -54,9 +54,11 @@ engine/              las piezas de cada paso del pipeline, compartidas por la AP
   instructions/      un .txt por dimensión: la pregunta que se le hace a kev
   infra.py           levanta el pod de kev en RunPod (o reusa el que ya está corriendo)
 qwen/                pruebas de prompts de Qwen sin la API: sample_kev.py (puntúa con kev) y run.py
+  data/kev_ratings.json  lo que devolvió kev (sample_kev.py); run.py lo lee sin necesitar el pod
+  results/           lo que respondió Qwen en cada corrida (.md para leer, .json)
 models/lid.176.ftz   modelo de fastText (lo copia api/Dockerfile)
 settings.py          toda la configuración: get_settings()
-infra.yaml           imagen, volumen, datacenter, puerto y GPUs del pod de kev
+infra.yaml           imagen, volumen, datacenter, puerto, GPUs y modelo (`run`) del pod de kev
 dashboard/           HTML/CSS/JS sin build (ver dashboard/README.md)
   js/config.js       configuración; apiBase sale de js/env.js
   js/env.js          API_BASE; vacío = modo demostración. En Docker se reescribe al arrancar
@@ -69,9 +71,15 @@ deploy/
   kev/               imagen Docker de kev (enzost4/kev:1.0) + serve_runpod.py (/ping)
   Caddyfile, *.env   producción de la herramienta de etiquetado (HTTPS + contraseña)
 deploy_models.py     CLI para levantar/bajar el pod a mano (up/down), sobre engine/infra.py
+kev_results/         fine-tuning de kev (ver "Fine-tuning de kev")
+  base-eval/<split>/       eval de kev-4b base sobre train, val y test
+  fine_tuned/eval/<split>/ el mismo eval con el fine-tuneado
+  fine_tuned/results/      config y métricas del entrenamiento; los pesos no se versionan
 reseñas/             datos: CSVs por idioma, labels.db, splits/ y splits_en/ (+ splits_en/kev/*.jsonl)
 data/                CSVs originales en español y portugués
-notebooks/           experimentos numerados (dataset, detección de idioma, traductores, modelos desplegados)
+notebooks/           experimentos numerados: 01 dataset, 02 detección de idioma, 03 traductores,
+                     05 modelos desplegados (cómo llamar a Hy-MT2, Qwen y kev), 06 eval del fine-tuning.
+                     Sueltos: 2_training_subset (qué reseñas etiquetar), 3_kev_test, 4_processing_labels (splits)
 few_shot_etiquetado_resenas.md  prompt few-shot y criterios de etiquetado (la referencia de cada dimensión)
 main.py              script suelto de detección de idioma con langdetect (la API usa engine/lang.py)
 compose.yaml         stack de la herramienta de etiquetado (app + Caddy)
@@ -87,7 +95,9 @@ from settings import get_settings
 s = get_settings()
 s.kev_api_key, s.openrouter_api_key, s.runpod_api_key, s.hf_token
 s.reviews_db_path        # api/reviews.db; en Docker /data/reviews.db
+s.lid_model_path         # models/lid.176.ftz (fastText)
 s.infra.devices          # lo de infra.yaml, validado
+s.infra.run              # el modelo que carga el pod (KEV_RUN)
 ```
 
 - Los secretos van en `.env` en la raíz (nunca se versiona ni entra en las imágenes): `RUNPOD_API_KEY`, `KEV_API_KEY`, `OPENROUTER_API_KEY`, `HF_TOKEN`. Una variable exportada en la shell le gana a `.env`.
@@ -101,7 +111,7 @@ s.infra.devices          # lo de infra.yaml, validado
 Siempre desde la raíz del repo. Los scripts importan `engine`, `api` y `settings` como paquetes, así que se corren con `-m`, no por ruta (`python tools/data.py` falla con `No module named 'engine'`). No hay `python` en el PATH: usar `uv run` o `.venv/bin/python`.
 
 ```bash
-uv sync                                         # dependencias (uv sync --all-groups para los notebooks de ML)
+uv sync                                         # dependencias de la API (uv sync --all-groups para los notebooks de ML)
 
 # API en local (http://127.0.0.1:8000/docs)
 uv run uvicorn api.main:app --reload
@@ -114,6 +124,13 @@ docker compose -f compose.app.yaml down         # down -v borra también la base
 
 # Datos para fine-tunear kev: reseñas/splits_en/<split>_en.csv -> reseñas/splits_en/kev/<split>.jsonl
 uv run python -m tools.data train               # train | val | test, opcional --save-path DIR
+
+# Pod de kev a mano (crear un pod empieza a cobrar)
+uv run python deploy_models.py up              # o down
+
+# Probar prompts de Qwen sin la API
+uv run python -m qwen.sample_kev                # puntúa reseñas de test con kev (levanta el pod y lo borra)
+uv run python -m qwen.run                       # Qwen sobre esas reseñas -> qwen/results/
 
 # Herramienta de etiquetado
 uv run tools/labeling/app.py serve              # http://127.0.0.1:8765
@@ -153,9 +170,33 @@ Devuelve `{id, base_url, health_url}`; las URLs se arman con el id y el `port` d
 
 - Siempre **secure cloud** (`cloud_type="SECURE"`), nunca community.
 - Crear un pod **empieza a cobrar**. El pod tarda unos minutos en cargar kev; hasta entonces la URL devuelve 502.
-- Los pesos de kev quedan en el network volume de `infra.yaml`, que está en un datacenter fijo: el pod tiene que estar en el mismo.
+- Los pesos de kev quedan en el network volume de `infra.yaml`, que está en un datacenter fijo: el pod tiene que estar en el mismo. El volume se monta en `/runpod-volume`.
+- **Qué modelo carga el pod: `run` de `infra.yaml`.** `create_kev_pod` lo pasa al pod como `KEV_RUN`, que le gana al default de la imagen (`jaredpalmer/kev-4b@v1.0`, en `deploy/kev/Dockerfile`). Hoy apunta al fine-tuneado en Hugging Face, `enzost98/kev-reviews@v1`: el pod lo baja con `HF_TOKEN` la primera vez y queda cacheado en el volume (`HF_HOME=/runpod-volume/huggingface`). Para volver al base, `run: jaredpalmer/kev-4b@v1.0`. Solo afecta a los pods nuevos: uno que ya está corriendo sigue con el modelo con que arrancó.
 - `deploy_models.py` es solo una CLI sobre `engine/infra.py`: `up` llama a `provision_pod()` y `down` a `terminate_kev_pods()`, que borra todos los pods `kev` (corriendo o frenados). Si la API está corriendo, su watcher ve el pod del script como nuevo, le da 5 min (3 + 2 de arranque) desde que lo ve, y lo borra si en ese tiempo no llega ningún request (cada request le da 3 min más).
 - Para la URL del pod desde cualquier lado (scripts, notebooks): `get_active_pod(get_settings().infra.port)`, después de asignar `runpod.api_key`. No hay archivo de configuración con la URL.
+
+## Fine-tuning de kev
+
+```
+reseñas/labels.db (etiquetas humanas, tools/labeling/)
+  -> reseñas/splits/<split>.csv           70/15/15 estratificado por etiqueta, igual por idioma (notebooks/4_processing_labels.ipynb)
+  -> reseñas/splits_en/<split>_en.csv     es/pt traducidas con Hy-MT2 (notebooks/03_traductor_pipeline/02_traducir_splits_hymt.ipynb)
+  -> reseñas/splits_en/kev/<split>.jsonl  formato de kev: uv run python -m tools.data <split>
+  -> entrenamiento y eval en un pod aparte (no está en este repo)
+  -> kev_results/                         config, métricas y evals que salieron de ahí
+  -> notebooks/06_kev_eval/finetune_results.ipynb  base vs fine-tuneado
+```
+
+- En cada `.jsonl`, `state` es la reseña en inglés y `questions` las cinco preguntas con su `label` (`"1"`…`"5"` o `"N/A"`).
+- El entrenamiento y el eval dejan afuera las reseñas de más de 384 tokens (`max_state`): ~28 en train, 9 en val y 8 en test. Quedan en `rejected.json` y son las mismas para los dos modelos. Al servir el límite es otro (`SERVE_MAX_STATE`, 65 536 en kev.serve): la API sí puntúa reseñas largas, pero su calidad no está medida.
+- En `rows.json` de los evals, `label` es el **índice** en `keys` (`["1".."5", "N/A"]`), no el puntaje.
+- Run `kev-reviews-1`: LoRA rango 16 sobre `jaredpalmer/kev-4b`, 2 épocas, lr 2e-5, head congelado (`head_lr` 0), sin pérdida ordinal (`ord_w` 0).
+- En test contra el base: NLL 0.53 -> 0.39, accuracy con etiqueta 1–5 0.75 -> 0.79. Lo más flojo sigue siendo `wait_time` y la confusión 4 vs 5. En train el NLL baja a 0.26: memoriza algo, pero val y test mejoran igual.
+- Los pesos (`adapter_model.safetensors` ~130 MB, `head.pt`, tokenizer) están en `.gitignore`: GitHub rechaza archivos de más de 100 MB. Viven en [enzost98/kev-reviews](https://huggingface.co/enzost98/kev-reviews), un repo público con acceso **gated**: para bajarlos hay que aceptar los términos de uso académico (se aprueba solo). La model card es `kev_results/fine_tuned/results/README.md`.
+- Bajarlos: `uvx --from huggingface_hub hf download enzost98/kev-reviews --revision v1 --local-dir kev_results/fine_tuned/results` (con un token de una cuenta que aceptó los términos).
+- El repo también trae `questions.json`: las cinco preguntas tal como se entrenaron (instrucciones de `engine/instructions/` + la regla común de `engine/aspects.py`, y los criterios). Es lo que usa el ejemplo de la model card, así quien baja el modelo tiene las preguntas de esa versión.
+- Un fine-tune nuevo: regenerar `questions.json` desde `engine/aspects.py` si cambiaron las instrucciones, subir la carpeta al mismo repo con un tag nuevo (`v2`, ...) y cambiar `run` en `infra.yaml`. Hace falta un token con permiso de escritura; el `HF_TOKEN` del `.env` es de solo lectura, porque es el que recibe el pod.
+- **Uso académico solamente:** se entrenó con reseñas de Yelp, cuyos términos no permiten uso comercial. La licencia es `cc-by-nc-4.0` y la model card lo dice arriba de todo.
 
 ## Bases de datos
 
@@ -176,11 +217,13 @@ Devuelve `{id, base_url, health_url}`; las URLs se arman con el id y el `port` d
 
 ## Estado actual / pendientes
 
-- **Falta el kev fine-tuneado.** La API usa el kev base del pod (`KEV_MODEL = "kev-latest"` en `engine/pipeline.py`). El tuneado lo agrega otra persona: cambiar `KEV_MODEL` (o la imagen/volumen de `infra.yaml` si se sirve desde otro pod). El resto del pipeline no cambia.
+- `KEV_MODEL = "kev-latest"` (`engine/pipeline.py`) es el nombre de modelo que manda el cliente; qué pesos carga el pod lo decide `run` de `infra.yaml`. El docstring y el comentario `PENDIENTE` de `engine/pipeline.py` todavía dicen que se usa el kev base.
 - `api/analyze.py` llama a `provision_pod` (en otro hilo) al empezar cada análisis y le pasa el pod a `kev_assing_ratings`. Si el pod es nuevo, el análisis espera a que kev cargue (~3 min, hasta `KEV_BOOT_TIMEOUT`); con el pod ya prendido tarda unos segundos. El cliente no espera: el POST ya respondió. Para no esperar, levantarlo antes con `deploy_models.py up`, teniendo en cuenta que el watcher lo borra tras 5 min sin reseñas.
 - La API ya usa el contrato del dashboard: recibe `{text, name}` (sin estrellas: el análisis sale solo del texto) y `GET /reviews/` devuelve `{dims, reviews}` con `scores`, `quotes` y `evidence` en listas (`to_dashboard` en `api/main.py`).
 - Las rutas son `async`: todo lo que bloquea (sqlite3, RunPod) va con `asyncio.to_thread`, y las llamadas a modelos tienen que usar los clientes async (`chat.send_async`, `AsyncTypeSafeClient`). Una llamada sincrónica dentro de una ruta `async` frena a todas las demás.
 - `KevRatings` (`engine/pipeline.py`) usa `"N/A"` y `api/reviews.db` usa `-1`: `db.save_scores` hace la conversión.
+- `qwen/run.py` menciona variantes de prompt en `qwen/prompts/`, pero esa carpeta no existe: hoy solo corre `engine/prompts/explain.txt`.
+- `docs/architecture.png` está desactualizado: el traductor dice MarianMT / NLLB (es Hy-MT2) y el paso 4 un "LLM liviano" (es Qwen3.5-9B por OpenRouter).
 
 ## Convenciones
 
