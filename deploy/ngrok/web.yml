@@ -1,0 +1,5 @@
+# Se suma a la configuración de ngrok de la máquina (compose.app.yaml): deja que el dashboard
+# le pregunte al agente cuál es la dirección pública, para armar el código QR.
+version: "3"
+agent:
+  web_addr: 0.0.0.0:4040

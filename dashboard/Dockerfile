@@ -7,6 +7,9 @@ COPY js/ /usr/share/nginx/html/js/
 COPY img/ /usr/share/nginx/html/img/
 COPY data/ /usr/share/nginx/html/data/
 
+# Static files + /api/ proxied to the API (same origin: one tunnel is enough).
+COPY docker/default.conf /etc/nginx/conf.d/default.conf
+
 # nginx runs every script in /docker-entrypoint.d before starting.
 COPY --chmod=755 docker/40-env.sh /docker-entrypoint.d/40-env.sh
 

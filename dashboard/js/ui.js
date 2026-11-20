@@ -62,6 +62,7 @@ const P = {
   next: '<path d="m9 18 6-6-6-6"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  qr: '<rect x="3.5" y="3.5" width="6" height="6" rx="1"/><rect x="14.5" y="3.5" width="6" height="6" rx="1"/><rect x="3.5" y="14.5" width="6" height="6" rx="1"/><path d="M14.5 14.5h2.5v2.5M20.5 14.5v2M14.5 20.5h2M20.5 20.5h-1v-1"/>',
   sparkle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
 };
 

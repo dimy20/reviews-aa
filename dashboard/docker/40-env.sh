@@ -5,6 +5,7 @@ set -eu
 cat > /usr/share/nginx/html/js/env.js <<JS
 export const ENV = {
   API_BASE: '${API_BASE:-}',
+  PUBLIC_URL: '${PUBLIC_URL:-}',
 };
 JS
-echo "env.js: API_BASE='${API_BASE:-}'"
+echo "env.js: API_BASE='${API_BASE:-}' PUBLIC_URL='${PUBLIC_URL:-}'"

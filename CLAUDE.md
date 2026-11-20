@@ -156,10 +156,10 @@ Devuelve `{id, base_url, health_url}`; las URLs se arman con el id y el `port` d
 **Borrar por inactividad: `watch_pod_activity()`**, tarea de fondo que arranca y se cancela en el `lifespan` de `api/main.py`.
 
 - `EXPIRES_AT` (en memoria) es cuándo se borra el pod, y `KNOWN_POD_ID` es el pod al que corresponde ese plazo.
-- Cada `provision_pod()` corre el plazo a ahora + `MAX_POD_INACTIVITY` (3 min); si el pod es nuevo, suma `BOOT_GRACE` (2 min) porque tarda en cargar kev. El plazo se corre al empezar cada análisis, no al terminar.
+- Cada `provision_pod()` corre el plazo a ahora + `MAX_POD_INACTIVITY` (45 min); si el pod es nuevo, suma `BOOT_GRACE` (2 min) porque tarda en cargar kev. El plazo se corre al empezar cada análisis, no al terminar.
 - Cada 60 s (`_check_pod`, con `POD_LOCK` tomado) le pregunta a RunPod por el pod `kev` corriendo:
   - **No hay pod:** no hace nada.
-  - **Pod con un id que la API no conocía** (lo levantó `deploy_models.py up`, o la API recién arranca o se reinició): le da una ventana completa de 3 + 2 min desde que lo ve, sin borrarlo. Así un pod del script no hereda un plazo viejo y se borra recién levantado, ni vive para siempre porque la API no lo tenía en cuenta. Y un reinicio nunca deja una GPU cobrando: el pod que ya estuviera corriendo se borra si no llega ningún request en esa ventana. Los reinicios del modo watch solo vuelven a dar la ventana.
+  - **Pod con un id que la API no conocía** (lo levantó `deploy_models.py up`, o la API recién arranca o se reinició): le da una ventana completa de 45 + 2 min desde que lo ve, sin borrarlo. Así un pod del script no hereda un plazo viejo y se borra recién levantado, ni vive para siempre porque la API no lo tenía en cuenta. Y un reinicio nunca deja una GPU cobrando: el pod que ya estuviera corriendo se borra si no llega ningún request en esa ventana. Los reinicios del modo watch solo vuelven a dar la ventana.
   - **El mismo pod y pasó `EXPIRES_AT`:** lo **termina** (`runpod.terminate_pod`). Deja de cobrar del todo, y los pesos siguen en el network volume. El próximo request crea uno nuevo y espera a que arranque.
 - Como mira con el lock tomado, no puede borrar un pod que un request acaba de recibir: ese request ya corrió el plazo.
 - Borra **cualquier** pod `kev` ocioso mientras la API corre, también uno levantado con `deploy_models.py up`. Para tener un pod que no se borre solo, frenar la API o usar otro nombre.
@@ -172,7 +172,7 @@ Devuelve `{id, base_url, health_url}`; las URLs se arman con el id y el `port` d
 - Crear un pod **empieza a cobrar**. El pod tarda unos minutos en cargar kev; hasta entonces la URL devuelve 502.
 - Los pesos de kev quedan en el network volume de `infra.yaml`, que está en un datacenter fijo: el pod tiene que estar en el mismo. El volume se monta en `/runpod-volume`.
 - **Qué modelo carga el pod: `run` de `infra.yaml`.** `create_kev_pod` lo pasa al pod como `KEV_RUN`, que le gana al default de la imagen (`jaredpalmer/kev-4b@v1.0`, en `deploy/kev/Dockerfile`). Hoy apunta al fine-tuneado en Hugging Face, `enzost98/kev-reviews@v1`: el pod lo baja con `HF_TOKEN` la primera vez y queda cacheado en el volume (`HF_HOME=/runpod-volume/huggingface`). Para volver al base, `run: jaredpalmer/kev-4b@v1.0`. Solo afecta a los pods nuevos: uno que ya está corriendo sigue con el modelo con que arrancó.
-- `deploy_models.py` es solo una CLI sobre `engine/infra.py`: `up` llama a `provision_pod()` y `down` a `terminate_kev_pods()`, que borra todos los pods `kev` (corriendo o frenados). Si la API está corriendo, su watcher ve el pod del script como nuevo, le da 5 min (3 + 2 de arranque) desde que lo ve, y lo borra si en ese tiempo no llega ningún request (cada request le da 3 min más).
+- `deploy_models.py` es solo una CLI sobre `engine/infra.py`: `up` llama a `provision_pod()` y `down` a `terminate_kev_pods()`, que borra todos los pods `kev` (corriendo o frenados). Si la API está corriendo, su watcher ve el pod del script como nuevo, le da 47 min (45 + 2 de arranque) desde que lo ve, y lo borra si en ese tiempo no llega ningún request (cada request le da 45 min más).
 - Para la URL del pod desde cualquier lado (scripts, notebooks): `get_active_pod(get_settings().infra.port)`, después de asignar `runpod.api_key`. No hay archivo de configuración con la URL.
 
 ## Fine-tuning de kev
@@ -210,7 +210,10 @@ reseñas/labels.db (etiquetas humanas, tools/labeling/)
 
 ## Docker
 
-- `compose.app.yaml` (proyecto `reviews-app`): `api` (`api/Dockerfile`, contexto la raíz) y `dashboard` (`dashboard/Dockerfile`, nginx). La API recibe los secretos con `env_file: .env`. El dashboard recibe `API_BASE`, la URL de la API **vista desde el navegador** (por defecto `http://localhost:${API_PORT:-8000}`). Puertos configurables con `API_PORT` y `DASHBOARD_PORT`.
+- `compose.app.yaml` (proyecto `reviews-app`): `api` (`api/Dockerfile`, contexto la raíz) y `dashboard` (`dashboard/Dockerfile`, nginx). La API recibe los secretos con `env_file: .env`. El dashboard recibe `API_BASE`, la URL de la API **vista desde el navegador**: por defecto `/api`, que el nginx del dashboard reenvía a la API (`dashboard/docker/default.conf`, solo `/api/reviews…`). Así el navegador le habla a un solo origen y funciona igual desde `localhost` que desde afuera. Puertos configurables con `API_PORT` y `DASHBOARD_PORT`.
+- Servicio `ngrok`: túnel público al dashboard (y a la API por `/api`). Usa el authtoken de `~/.config/ngrok/ngrok.yml`, montado de solo lectura. La dirección cambia en cada arranque y sale en `docker compose -f compose.app.yaml logs ngrok | grep -o 'url=.*'`. El plan gratis permite una sola sesión: no puede correr a la vez que un `ngrok` a mano.
+- Código QR del formulario: botón "Código QR del formulario" en el menú del dashboard (`dashboard/js/qr.js`, con `js/vendor/qrcode.js`). Apunta a `opinar.html` en la dirección pública: `PUBLIC_URL` si está definida; si el dashboard está abierto en `localhost`, la del túnel de ngrok (nginx se la pregunta al agente en `/public-url`; `deploy/ngrok/web.yml` habilita esa consulta); y si no, la misma con la que se abrió el dashboard.
+- Vaciar la base de la API: `docker compose -f compose.app.yaml exec api python -m api.clean` (borra las reseñas, deja la tabla). Sin Docker, `uv run python -m api.clean` limpia `api/reviews.db`, que es otra base.
 - `compose.yaml` (proyecto `reviews`): la herramienta de etiquetado detrás de Caddy, para el droplet. Solo Caddy publica puertos.
 - Los puertos publicados por Docker saltean ufw: publicar solo en `127.0.0.1` o detrás de Caddy.
 - `.dockerignore` deja afuera `.env*`, `*.db`, `notebooks/`, `docs/` y `deploy/`.
@@ -218,12 +221,11 @@ reseñas/labels.db (etiquetas humanas, tools/labeling/)
 ## Estado actual / pendientes
 
 - `KEV_MODEL = "kev-latest"` (`engine/pipeline.py`) es el nombre de modelo que manda el cliente; qué pesos carga el pod lo decide `run` de `infra.yaml`. El docstring y el comentario `PENDIENTE` de `engine/pipeline.py` todavía dicen que se usa el kev base.
-- `api/analyze.py` llama a `provision_pod` (en otro hilo) al empezar cada análisis y le pasa el pod a `kev_assing_ratings`. Si el pod es nuevo, el análisis espera a que kev cargue (~3 min, hasta `KEV_BOOT_TIMEOUT`); con el pod ya prendido tarda unos segundos. El cliente no espera: el POST ya respondió. Para no esperar, levantarlo antes con `deploy_models.py up`, teniendo en cuenta que el watcher lo borra tras 5 min sin reseñas.
+- `api/analyze.py` llama a `provision_pod` (en otro hilo) al empezar cada análisis y le pasa el pod a `kev_assing_ratings`. Si el pod es nuevo, el análisis espera a que kev cargue (~3 min, hasta `KEV_BOOT_TIMEOUT`); con el pod ya prendido tarda unos segundos. El cliente no espera: el POST ya respondió. Para no esperar, levantarlo antes con `deploy_models.py up`, teniendo en cuenta que el watcher lo borra tras 45 min sin reseñas.
 - La API ya usa el contrato del dashboard: recibe `{text, name}` (sin estrellas: el análisis sale solo del texto) y `GET /reviews/` devuelve `{dims, reviews}` con `scores`, `quotes` y `evidence` en listas (`to_dashboard` en `api/main.py`).
 - Las rutas son `async`: todo lo que bloquea (sqlite3, RunPod) va con `asyncio.to_thread`, y las llamadas a modelos tienen que usar los clientes async (`chat.send_async`, `AsyncTypeSafeClient`). Una llamada sincrónica dentro de una ruta `async` frena a todas las demás.
 - `KevRatings` (`engine/pipeline.py`) usa `"N/A"` y `api/reviews.db` usa `-1`: `db.save_scores` hace la conversión.
 - `qwen/run.py` menciona variantes de prompt en `qwen/prompts/`, pero esa carpeta no existe: hoy solo corre `engine/prompts/explain.txt`.
-- `docs/architecture.png` está desactualizado: el traductor dice MarianMT / NLLB (es Hy-MT2) y el paso 4 un "LLM liviano" (es Qwen3.5-9B por OpenRouter).
 
 ## Convenciones
 

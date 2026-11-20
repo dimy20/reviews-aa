@@ -11,6 +11,11 @@ export const CONFIG = {
   // Sale de js/env.js (en Docker, de la variable API_BASE).
   apiBase: ENV.API_BASE,
 
+  // Dirección pública del dashboard (por ejemplo la de ngrok), para el código QR del formulario.
+  // Vacío = usa la dirección con la que se abrió el dashboard.
+  // Sale de js/env.js (en Docker, de la variable PUBLIC_URL).
+  publicUrl: ENV.PUBLIC_URL || '',
+
   // Cada cuántos segundos se piden reseñas nuevas a la API.
   refreshSeconds: 15,
 

@@ -2,4 +2,5 @@
 // from the container's env vars (dashboard/docker/40-env.sh). Empty = demo mode.
 export const ENV = {
   API_BASE: 'http://127.0.0.1:8000',
+  PUBLIC_URL: '',
 };

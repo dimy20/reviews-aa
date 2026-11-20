@@ -3,6 +3,7 @@ import { CONFIG } from './config.js';
 import { loadReviews, status, store, STORAGE_KEYS } from './api.js';
 import { applyFilters, timeRange, DEFAULT_FILTERS } from './metrics.js';
 import { $, $$, h, icon, img, toast, nf0, monthLabel, LANG } from './ui.js';
+import { showQr } from './qr.js';
 
 const NAV = [
   { id: 'resumen', label: 'Resumen', icon: 'chart', href: 'index.html',
@@ -24,7 +25,9 @@ function mountSidebar(page) {
   ]);
 
   const extra = h('div', { class: 'nav-extra' },
-    h('a', { class: 'nav-item small', href: CONFIG.publicForm, target: '_blank', rel: 'noopener' }, icon('external', 18), h('span', { text: 'Formulario público' })));
+    h('a', { class: 'nav-item small', href: CONFIG.publicForm, target: '_blank', rel: 'noopener' }, icon('external', 18), h('span', { text: 'Formulario público' })),
+    h('button', { class: 'nav-item small', type: 'button', onclick: () => showQr().catch((err) => { console.error(err); toast('No se pudo mostrar el código QR.'); }) },
+      icon('qr', 18), h('span', { text: 'Código QR del formulario' })));
 
   el.replaceChildren(
     h('a', { class: 'brand', href: 'index.html' }, h('span', { text: CONFIG.appName }), h('i')),

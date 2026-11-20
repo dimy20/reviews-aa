@@ -20,7 +20,7 @@ Como funciona:
 - Los pesos de kev (~9.5 GB) quedan en el network volume: el primer `up` los baja, los siguientes no.
   Kev tarda unos minutos en cargar; hasta entonces la URL devuelve 502.
 - `down` borra los pods enteros; los pesos siguen en el volume.
-- Ojo: si la API esta corriendo, su watcher borra cualquier pod `kev` que lleve 3 min sin requests,
+- Ojo: si la API esta corriendo, su watcher borra cualquier pod `kev` que lleve 45 min sin requests,
   tambien el que levanta este script.
 - Para llamar a kev: notebooks/05_modelos_desplegados/03_kev_etiquetado.ipynb.
 - Logs de kev: consola de RunPod -> pod `kev` -> Logs.

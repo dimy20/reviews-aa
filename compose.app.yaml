@@ -5,6 +5,7 @@
 #
 #   dashboard: http://localhost:8080
 #   api:       http://localhost:8000/docs
+#   public:    docker compose -f compose.app.yaml logs ngrok | grep -o 'url=.*'
 #
 # Ports are bound to 127.0.0.1 only: Docker's published ports bypass ufw.
 
@@ -54,9 +55,13 @@ services:
       api:
         condition: service_healthy
     environment:
-      # Called from the browser, not from the container: it must be the API's
-      # address as the browser sees it.
-      API_BASE: ${API_BASE:-http://localhost:${API_PORT:-8000}}
+      # Called from the browser. /api is served by this same nginx, which forwards it to
+      # the api service (dashboard/docker/default.conf): it works from localhost and
+      # through the ngrok tunnel alike.
+      API_BASE: ${API_BASE:-/api}
+      # Public address of the dashboard, used by the form's QR code. Empty = the address the
+      # dashboard was opened with (open it through the ngrok URL and the QR is right).
+      PUBLIC_URL: ${PUBLIC_URL:-}
     ports:
       - "127.0.0.1:${DASHBOARD_PORT:-8080}:80"
     develop:
@@ -72,6 +77,19 @@ services:
           action: rebuild
         - path: ./dashboard/docker
           action: rebuild
+
+  # Public URL for the dashboard (and the API, through /api). The address is in the logs:
+  #   docker compose -f compose.app.yaml logs ngrok | grep -o 'url=.*'
+  ngrok:
+    image: ngrok/ngrok:3
+    restart: unless-stopped
+    depends_on: [dashboard]
+    command: http dashboard:80 --config /etc/ngrok.yml --config /etc/ngrok-web.yml --log stdout
+    volumes:
+      # the authtoken from the machine's own ngrok install, read-only (never copied into .env)
+      - ${HOME}/.config/ngrok/ngrok.yml:/etc/ngrok.yml:ro
+      # lets the dashboard ask the agent for the public address (for the QR code)
+      - ./deploy/ngrok/web.yml:/etc/ngrok-web.yml:ro
 
 volumes:
   api-data:
