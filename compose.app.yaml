@@ -20,6 +20,8 @@ services:
     env_file: .env                    # RUNPOD_API_KEY, KEV_API_KEY, OPENROUTER_API_KEY, HF_TOKEN
     environment:
       REVIEWS_DB_PATH: /data/reviews.db
+      # minutes without reviews before the kev pod is deleted (from .env or the shell)
+      MAX_POD_INACTIVITY_MINUTES: ${MAX_POD_INACTIVITY_MINUTES:-10}
     volumes:
       - api-data:/data                # reviews.db, survives rebuilds
     ports:

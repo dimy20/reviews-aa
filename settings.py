@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     infra_config_path: Path = ROOT / "infra.yaml"
     reviews_db_path: Path = ROOT / "api" / "reviews.db"  # in Docker: /data/reviews.db (a volume)
     lid_model_path: Path = ROOT / "models" / "lid.176.ftz"  # fastText: detección de idioma
+    max_pod_inactivity_minutes: int = 10  # el pod de kev se borra tras este tiempo sin reseñas
     @property
     def infra(self) -> InfraSettings:
         return _load_infra(self.infra_config_path)

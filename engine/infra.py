@@ -16,7 +16,7 @@ class CreatePodResult(TypedDict):
     new: bool
 
 EXPIRES_AT = 0
-MAX_POD_INACTIVITY = 60 * 45 # 45 minutos
+MAX_POD_INACTIVITY = 60 * get_settings().max_pod_inactivity_minutes # segundos; MAX_POD_INACTIVITY_MINUTES (10 por defecto)
 BOOT_GRACE = 120 # un par de minutos, pq el pod demora un poco en inicializar
 # el pod al que corresponde EXPIRES_AT. Un pod `kev` con otro id (deploy_models.py, un reinicio
 # de la API) es nuevo para esta API: recibe una ventana completa en vez de heredar un plazo viejo
