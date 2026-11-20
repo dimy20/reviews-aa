@@ -87,3 +87,9 @@ uv run uvicorn api.main:app --reload
 Sin API, el dashboard funciona en modo demostración con las reseñas etiquetadas: abrir `dashboard/index.html` con Live Server (ver [`dashboard/README.md`](dashboard/README.md)).
 
 Los detalles de cada pieza (estructura del repo, configuración, el pod de kev, bases de datos) están en [`CLAUDE.md`](CLAUDE.md).
+
+## RestoAnalytics
+
+RestoAnalytics analiza reseñas de restaurantes en español, inglés y portugués. En lugar de dar una sola calificación, puntúa cinco aspectos: comida, atención, tiempo de espera, precio y experiencia general. Si la reseña no aporta información suficiente sobre un aspecto, lo marca como N/A.
+
+El tablero muestra los puntajes y sus explicaciones, acompañadas de citas de la reseña original cuando están disponibles.
